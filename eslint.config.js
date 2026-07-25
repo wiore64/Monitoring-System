@@ -4,7 +4,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "data/**", "logs/**", ".zed/**"],
+    ignores: ["dist/**", "node_modules/**"],
   },
 
   js.configs.recommended,
