@@ -1,4 +1,4 @@
-export const CONFIG = {
+export const config = {
   botToken: getEnvVar("BOT_TOKEN"),
   ytToken: getEnvVar("YT_TOKEN"),
   twitterAuth: {
