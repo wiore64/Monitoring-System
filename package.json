@@ -21,9 +21,13 @@
       "production": "./dist/monitor/*.js",
       "development": "./src/monitor/*.ts"
     },
+    "#shared/*": {
+      "production": "./dist/shared/*.js",
+      "development": "./src/shared/*.ts"
+    },
     "#utils/*.js": {
-      "production": "./dist/utils/*.js",
-      "development": "./src/utils/*.ts"
+      "production": "./dist/shared/utils/*.js",
+      "development": "./src/shared/utils/*.ts"
     }
   },
   "scripts": {
