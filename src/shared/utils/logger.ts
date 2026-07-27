@@ -4,10 +4,14 @@ const LOG_PATHS: Record<LogLevel, string> = {
   debug: "./logs/debug.log",
   info: "./logs/info.log",
   warn: "./logs/warn.log",
-  error: "./logs/error.log",
+  severe: "./logs/severe.log",
 } as const;
 
-type LogLevel = "debug" | "info" | "warn" | "error";
+type LogLevel = "debug" | "info" | "warn" | "severe";
+
+export function generateTraceId(): string {
+  return crypto.randomUUID();
+}
 
 export function debug(origin: string, message: string, traceId: string): void {
   log("debug", origin, message, traceId);
@@ -21,8 +25,8 @@ export function warn(origin: string, message: string, traceId: string): void {
   log("warn", origin, message, traceId);
 }
 
-export function error(origin: string, message: string, traceId: string): void {
-  log("error", origin, message, traceId);
+export function severe(origin: string, message: string, traceId: string): void {
+  log("severe", origin, message, traceId);
 }
 
 function log(level: LogLevel, origin: string, message: string, traceId: string): void {
@@ -45,7 +49,7 @@ function log(level: LogLevel, origin: string, message: string, traceId: string):
     case "warn":
       console.warn(record);
       break;
-    case "error":
+    case "severe":
       console.error(record);
       break;
     default:
