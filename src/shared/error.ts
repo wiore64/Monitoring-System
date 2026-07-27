@@ -29,9 +29,9 @@ export class DnsError extends ConnectionError {
   }
 }
 
-export class TimeoutError extends Error {
+export class TimeoutError extends ConnectionError {
   constructor(message: string) {
-    super(message);
+    super(message, "ETIMEDOUT");
     this.name = "TimeoutError";
   }
 }
