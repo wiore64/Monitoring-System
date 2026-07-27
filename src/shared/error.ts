@@ -6,32 +6,34 @@ const DNS_ERROR_CODES: ReadonlySet<string> = new Set([
 ]);
 
 abstract class ConnectionError extends Error {
-  protected readonly code: string;
+  readonly code: string;
+  readonly trace: string;
 
-  constructor(message: string, code: string) {
-    super(message);
+  protected constructor(message: string, code: string, stack: string, cause: Error) {
+    super(message, cause);
     this.name = "ConnectionError";
     this.code = code;
+    this.trace = stack;
   }
 }
 
 export class HttpError extends ConnectionError {
-  constructor(message: string, code: string) {
-    super(message, code);
+  constructor(message: string, code: string, stack: string, cause: Error) {
+    super(message, code, stack, cause);
     this.name = "HttpError";
   }
 }
 
 export class DnsError extends ConnectionError {
-  constructor(message: string, code: string) {
-    super(message, code);
+  constructor(message: string, code: string, stack: string, cause: Error) {
+    super(message, code, stack, cause);
     this.name = "DnsError";
   }
 }
 
 export class TimeoutError extends ConnectionError {
-  constructor(message: string) {
-    super(message, "ETIMEDOUT");
+  constructor(message: string, cause: Error) {
+    super(message, "ETIMEDOUT", "", cause);
     this.name = "TimeoutError";
   }
 }
@@ -44,23 +46,30 @@ export function toError(thing: unknown): Error | undefined {
   return thing instanceof Error ? thing : new Error(String(thing));
 }
 
-export function normalizeConnectionError(error: Error): HttpError | DnsError {
-  if (error instanceof HttpError || error instanceof DnsError) {
+export function translateNetworkError(error: Error): HttpError | DnsError | TimeoutError {
+  if (error instanceof HttpError || error instanceof DnsError || error instanceof TimeoutError) {
     return error;
   }
 
   const errorCode = getCode(error);
 
   if (DNS_ERROR_CODES.has(errorCode)) {
-    return new DnsError(error.message, errorCode);
+    return new DnsError(error.message, errorCode, getStack(error), error);
   }
 
-  const cause = error.cause;
-  const causeError = toError(cause);
+  if (error.name === "TimeoutError") {
+    return new TimeoutError(error.message, error);
+  }
 
-  return causeError
-    ? normalizeConnectionError(causeError)
-    : new HttpError(error.message, errorCode);
+  const cause = getCause(error);
+
+  return cause
+    ? translateNetworkError(cause)
+    : new HttpError(error.message, errorCode, getStack(error), error);
+}
+
+export function getCause(error: Error): Error | undefined {
+  return toError(error.cause);
 }
 
 export function getCode(error: Error): string {

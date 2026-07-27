@@ -1,4 +1,4 @@
-import { DnsError, getStack, toError } from "#shared/error.js";
+import { DnsError, getCause, getStack, HttpError, TimeoutError, toError } from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import { run as runBlackfileIndex } from "./list/blackfile-index/monitor.js";
@@ -34,6 +34,7 @@ const MONITOR_REGISTRY: Record<MonitorType, MonitorRunner> = {
 
 const monitorIntervals: Map<MonitorType, NodeJS.Timeout> = new Map();
 const monitorContexts: Map<MonitorType, object> = new Map();
+
 let isNetworkOutage = false;
 
 export function runMonitorInterval(monitorType: MonitorType, intervalMs: number): ServiceResult {
@@ -91,11 +92,10 @@ export async function runMonitor(
       return { success: false, reason: `Unknown error: ${thing}` };
     }
 
-    const cause = error.cause;
-    const causeError = toError(cause);
+    const cause = getCause(error);
 
-    handleMonitorFailure(monitorType, causeError ?? error, traceId);
-    return { success: false, reason: causeError?.message ?? error.message };
+    handleMonitorFailure(monitorType, cause ?? error, traceId);
+    return { success: false, reason: cause?.message ?? error.message };
   }
 }
 
@@ -124,5 +124,9 @@ function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: s
 
   isNetworkOutage = false;
 
-  warn(LOG_NAME, `An error occurred while running ${monitorType}: ${getStack(error)}.`, traceId);
+  warn(
+    LOG_NAME,
+    `An error occurred while running ${monitorType}: ${error.message}\n${getStack(error)}`,
+    traceId,
+  );
 }
