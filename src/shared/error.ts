@@ -64,9 +64,9 @@ export function normalizeConnectionError(error: Error): HttpError | DnsError {
 }
 
 export function getCode(error: Error): string {
-  return "code" in error && typeof error.code === "string" ? error.code : "";
+  return "code" in error && typeof error.code === "string" ? error.code : "N/A";
 }
 
 export function getStack(error: Error): string {
-  return error.stack ?? "";
+  return error.stack ?? "N/A";
 }
