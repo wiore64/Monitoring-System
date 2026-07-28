@@ -20,7 +20,7 @@ async function run(): Promise<void> {
 
 async function initMonitor(traceId: string): Promise<void> {
   const service = await import("#monitor/scheduler-service.js");
-  service.start(traceId);
+  service.initialize(traceId);
 }
 
-await run();
+run();

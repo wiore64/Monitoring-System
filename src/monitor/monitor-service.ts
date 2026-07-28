@@ -1,4 +1,4 @@
-import { DnsError, getCause, getStack, HttpError, TimeoutError, toError } from "#shared/error.js";
+import { DnsError, getStack, toError } from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import { run as runBlackfileIndex } from "./list/blackfile-index/monitor.js";
@@ -19,9 +19,18 @@ export const MonitorType = {
   Youtube: "youtube",
 } as const;
 
-type MonitorType = (typeof MonitorType)[keyof typeof MonitorType];
-type ServiceResult = { success: true } | { success: false; reason: string };
+export type MonitorType = (typeof MonitorType)[keyof typeof MonitorType];
 type MonitorRunner = (context: object, time: Date, traceId: string) => Promise<object>;
+type ServiceResult = { success: true } | { success: false; reason: string };
+
+export const MONITOR_PATHS: Record<MonitorType, string> = {
+  "blackfile-index": "./list/blackfile-index/monitor.js",
+  filianislost: "./list/filianislost/monitor.js",
+  "minecraft-info": "./list/minecraft/info/monitor.js",
+  "minecraft-state": "./list/minecraft/state/monitor.js",
+  twitter: "./list/twitter/monitor.js",
+  youtube: "./list/youtube/monitor.js",
+} as const;
 
 const MONITOR_REGISTRY: Record<MonitorType, MonitorRunner> = {
   "blackfile-index": runBlackfileIndex,
@@ -30,21 +39,25 @@ const MONITOR_REGISTRY: Record<MonitorType, MonitorRunner> = {
   "minecraft-state": runMinecraftState,
   twitter: runTwitter,
   youtube: runYoutube,
-};
+} as const;
 
 const monitorIntervals: Map<MonitorType, NodeJS.Timeout> = new Map();
 const monitorContexts: Map<MonitorType, object> = new Map();
 
 let isNetworkOutage = false;
 
-export function runMonitorInterval(monitorType: MonitorType, intervalMs: number): ServiceResult {
+export function startMonitorInterval(
+  monitorType: MonitorType,
+  intervalMs: number,
+  initialContext: object = {},
+): ServiceResult {
   if (isMonitorInInterval(monitorType)) {
-    return { success: false, reason: `Monitor ${monitorType} is already in interval` };
+    return { success: false, reason: `Monitor ${monitorType} already in interval.` };
   }
 
   monitorIntervals.set(
     monitorType,
-    setInterval(() => void runMonitor(monitorType), intervalMs),
+    setInterval(() => void runMonitor(monitorType, initialContext), intervalMs),
   );
 
   return { success: true };
@@ -52,7 +65,7 @@ export function runMonitorInterval(monitorType: MonitorType, intervalMs: number)
 
 export function stopMonitorInterval(monitorType: MonitorType) {
   if (!isMonitorInInterval(monitorType)) {
-    return { success: false, reason: `Monitor ${monitorType} is not in interval` };
+    return { success: false, reason: `Monitor ${monitorType} not in interval.` };
   }
 
   clearInterval(monitorIntervals.get(monitorType));
@@ -75,7 +88,7 @@ export async function runMonitor(
 ): Promise<ServiceResult> {
   const runnable = MONITOR_REGISTRY[monitorType];
   if (!runnable) {
-    throw new TypeError(`Monitor ${monitorType} is not registered.`);
+    throw new TypeError(`Monitor ${monitorType} not registered.`);
   }
 
   try {
@@ -92,10 +105,8 @@ export async function runMonitor(
       return { success: false, reason: `Unknown error: ${thing}` };
     }
 
-    const cause = getCause(error);
-
-    handleMonitorFailure(monitorType, cause ?? error, traceId);
-    return { success: false, reason: cause?.message ?? error.message };
+    handleMonitorFailure(monitorType, error, traceId);
+    return { success: false, reason: error.message };
   }
 }
 
