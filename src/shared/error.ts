@@ -33,7 +33,7 @@ export class DnsError extends ConnectionError {
 
 export class TimeoutError extends ConnectionError {
   constructor(message: string, cause: Error) {
-    super(message, "ETIMEDOUT", "", cause);
+    super(message, "", "", cause);
     this.name = "TimeoutError";
   }
 }
@@ -72,10 +72,10 @@ export function getCause(error: Error): Error | undefined {
   return toError(error.cause);
 }
 
-export function getCode(error: Error): string {
-  return "code" in error && typeof error.code === "string" ? error.code : "N/A";
+export function getStack(error: Error): string {
+  return error.stack ?? "";
 }
 
-export function getStack(error: Error): string {
-  return error.stack ?? "N/A";
+export function getCode(error: Error): string {
+  return "code" in error && typeof error.code === "string" ? error.code : "";
 }
