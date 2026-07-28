@@ -107,26 +107,16 @@ function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: s
 
     isNetworkOutage = true;
 
-    severe(
-      LOG_NAME,
-      "A network outage has been detected. Future DNS errors will be suppressed.",
-      traceId,
-    );
+    severe(LOG_NAME, "Network outage detected. Future DNS errors will be suppressed.", traceId);
   }
 
   if (isNetworkOutage) {
-    info(
-      LOG_NAME,
-      "The network outage has been resolved. Future DNS errors are now allowed.",
-      traceId,
-    );
+    info(LOG_NAME, "Network outage resolved. Future DNS errors are resumed.", traceId);
   }
 
   isNetworkOutage = false;
 
-  warn(
-    LOG_NAME,
-    `An error occurred while running ${monitorType}: ${error.message}\n${getStack(error)}`,
-    traceId,
-  );
+  const reason = error.stack ? `${error.message}\n${getStack(error)}` : error.message;
+
+  warn(LOG_NAME, `Failed to run ${monitorType}: ${reason}`, traceId);
 }
