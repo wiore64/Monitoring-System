@@ -68,39 +68,39 @@ function initiateMonitor(monitor: SchedulerMonitor): void {
   switch (monitor.type) {
     case MonitorType.BlackfileIndex:
       startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        timeoutMs: monitor.config.initial.timeout,
+        "timeout-ms": monitor.config.initial.timeout,
       });
       break;
 
     case MonitorType.Filianislost:
       startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        timeoutMs: monitor.config.initial.timeout,
+        "timeout-ms": monitor.config.initial.timeout,
       });
       break;
 
     case MonitorType.MinecraftInfo:
       startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        timeoutMs: monitor.config.initial.timeout,
+        "timeout-ms": monitor.config.initial.timeout,
       });
       setInterval(() => void adjustMinecraftInfoMonitor(), monitor.config.adjustment.interval);
       break;
 
     case MonitorType.MinecraftState:
       startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        timeoutMs: monitor.config.initial.timeout,
+        "timeout-ms": monitor.config.initial.timeout,
       });
       setInterval(() => void adjustMinecraftStateMonitor(), monitor.config.adjustment.interval);
       break;
 
     case MonitorType.Twitter:
       startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        timeoutMs: monitor.config.initial.timeout,
+        "timeout-ms": monitor.config.initial.timeout,
       });
       break;
 
     case MonitorType.Youtube:
       startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        timeoutMs: monitor.config.initial.timeout,
+        "timeout-ms": monitor.config.initial.timeout,
       });
       break;
 

@@ -35,10 +35,10 @@
     "customConditions": ["development"],
 
     "paths": {
-      "#/*": ["./src/*"],
-      "#monitor/*": ["./src/monitor/*"],
-      "#shared/*": ["./src/shared/*"],
-      "#utils/*": ["./src/shared/utils/*"]
+      "#/*.js": ["./src/*.ts"],
+      "#monitor/*.js": ["./src/monitor/*.ts"],
+      "#shared/*.js": ["./src/shared/*.ts"],
+      "#utils/*.js": ["./src/shared/utils/*.ts"]
     },
 
     // Recommended Options

@@ -1,3 +1,11 @@
-export async function run(context: object, time: Date, traceId: string): Promise<object> {
-  return {};
+export type MonitorContext = {
+  "timeout-ms": number;
+};
+
+export async function run(
+  context: MonitorContext,
+  time: Date,
+  traceId: string,
+): Promise<MonitorContext> {
+  return context;
 }
