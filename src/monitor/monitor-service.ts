@@ -81,8 +81,8 @@ let isNetworkOutage = false;
 
 export function startMonitorInterval<T extends MonitorType>(
   monitorType: T,
-  intervalMs: number,
   initialContext: MonitorContext[T],
+  intervalMs: number,
 ): ServiceResult {
   if (isMonitorInInterval(monitorType)) {
     return { success: false, reason: `Monitor ${monitorType} already in interval.` };
@@ -126,6 +126,8 @@ export async function runMonitor<T extends MonitorType>(
 
   try {
     const oldContext = monitorContexts.get(monitorType) ?? initialContext;
+
+    // old context is guaranteed to be of type MonitorContext[T]
     const newContext = await runnable(oldContext as MonitorContext[T], time, traceId);
 
     monitorContexts.set(monitorType, newContext);
@@ -135,7 +137,7 @@ export async function runMonitor<T extends MonitorType>(
     const error = toError(thing);
 
     if (!error) {
-      return { success: false, reason: `Unknown error: ${thing}` };
+      throw new TypeError(`Unknown error: ${thing}`, { cause: thing });
     }
 
     handleMonitorFailure(monitorType, error, traceId);
@@ -152,13 +154,14 @@ function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: s
     isNetworkOutage = true;
 
     severe(LOG_NAME, "Network outage detected. Future DNS errors will be suppressed.", traceId);
+    return;
   }
 
   if (isNetworkOutage) {
+    isNetworkOutage = false;
+
     info(LOG_NAME, "Network outage resolved. Future DNS errors are resumed.", traceId);
   }
-
-  isNetworkOutage = false;
 
   const reason = error.stack ? `${error.message}\n${getStack(error)}` : error.message;
 

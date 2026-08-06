@@ -1,7 +1,6 @@
+import { MONITOR_PATHS, MonitorType, startMonitorInterval } from "#monitor/monitor-service.js";
 import { readJsonFile } from "#utils/file.js";
 import { debug, generateTraceId } from "#utils/logger.js";
-
-import { MONITOR_PATHS, MonitorType, startMonitorInterval } from "./monitor-service.js";
 
 const LOG_NAME = "Scheduler Service";
 const SCHEDULER_CONFIG_PATH = "./data/scheduler/scheduler-config.json";
@@ -55,6 +54,7 @@ export function initialize(traceId: string = generateTraceId()): void {
   const config = readJsonFile<SchedulerConfig>(SCHEDULER_CONFIG_PATH);
 
   for (const [monitorType, monitorConfig] of Object.entries(config)) {
+    // Entry is guaranteed to be a valid SchedulerMonitorConfig because I trust myself
     initiateMonitor({
       type: monitorType,
       config: monitorConfig,
@@ -67,41 +67,65 @@ export function initialize(traceId: string = generateTraceId()): void {
 function initiateMonitor(monitor: SchedulerMonitor): void {
   switch (monitor.type) {
     case MonitorType.BlackfileIndex:
-      startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        "timeout-ms": monitor.config.initial.timeout,
-      });
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
       break;
 
     case MonitorType.Filianislost:
-      startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        "timeout-ms": monitor.config.initial.timeout,
-      });
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
       break;
 
     case MonitorType.MinecraftInfo:
-      startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        "timeout-ms": monitor.config.initial.timeout,
-      });
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
       setInterval(() => void adjustMinecraftInfoMonitor(), monitor.config.adjustment.interval);
       break;
 
     case MonitorType.MinecraftState:
-      startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        "timeout-ms": monitor.config.initial.timeout,
-      });
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
       setInterval(() => void adjustMinecraftStateMonitor(), monitor.config.adjustment.interval);
       break;
 
     case MonitorType.Twitter:
-      startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        "timeout-ms": monitor.config.initial.timeout,
-      });
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
       break;
 
     case MonitorType.Youtube:
-      startMonitorInterval(monitor.type, monitor.config.initial.interval, {
-        "timeout-ms": monitor.config.initial.timeout,
-      });
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
       break;
 
     default:
