@@ -1,4 +1,4 @@
-import { appendFile } from "./file.js";
+import { appendFile } from "#utils/file.js";
 
 const LOG_PATHS: Record<LogLevel, string> = {
   debug: "./logs/debug.log",

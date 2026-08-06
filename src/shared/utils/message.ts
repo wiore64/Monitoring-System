@@ -23,16 +23,17 @@ export async function sendMessage(channelId: string, payload: Payload): Promise<
     if (!channel) {
       throw new TypeError(`Channel not found: ${channelId}`);
     }
+
     if (!channel.isSendable()) {
       throw new TypeError(`Channel is not sendable: ${channelId}`);
     }
 
-    return channel.send(buildOptions(payload));
+    return await channel.send(buildOptions(payload));
   } catch (thing: unknown) {
     const error = toError(thing);
 
     if (!error) {
-      throw new TypeError(`Non-error thrown: ${thing}`, error);
+      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
     throw translateNetworkError(error);
@@ -51,6 +52,7 @@ export async function editMessage(
     if (!channel) {
       throw new TypeError(`Channel not found: ${channelId}`);
     }
+
     if (!channel.isTextBased()) {
       throw new TypeError(`Channel is not text-based: ${channelId}`);
     }
@@ -62,12 +64,12 @@ export async function editMessage(
       throw new TypeError(`Message not found: ${messageId}`);
     }
 
-    return message.edit(buildOptions(payload));
+    return await message.edit(buildOptions(payload));
   } catch (thing: unknown) {
     const error = toError(thing);
 
     if (!error) {
-      throw new TypeError(`Non-error thrown: ${thing}`, error);
+      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
     throw translateNetworkError(error);
