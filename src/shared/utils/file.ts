@@ -48,6 +48,13 @@ export function readJsonFile<T>(
   return JSON.parse(readFile(relativePath, options));
 }
 
+export function createDirectory(
+  relativePath: string,
+  options: { basePath?: string | URL } = {},
+): void {
+  fs.mkdirSync(resolvePath(options.basePath ?? ROOT_URL, relativePath), { recursive: true });
+}
+
 function resolvePath(basePath: string | URL, relativePath: string): string {
   return fileURLToPath(new URL(relativePath, basePath));
 }
