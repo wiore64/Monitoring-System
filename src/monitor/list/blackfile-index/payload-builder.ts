@@ -2,7 +2,7 @@ import { type Payload, formatContent } from "#utils/message.js";
 import { readJsonFile } from "#utils/file.js";
 import { EmbedBuilder } from "discord.js";
 
-const PAYLOAD_CONFIG_PATH = ".data/blackfile-index/payload-config.json";
+const PAYLOAD_CONFIG_PATH = "./data/blackfile-index/payload-config.json";
 
 type PayloadConfig = {
   main: MainPayloadConfig;
@@ -31,17 +31,17 @@ type WebsiteDownPayloadConfig = {
 export function buildMainPayload(isWebsiteOnline: boolean, time: Date): Payload {
   const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).main;
 
-  const description = isWebsiteOnline
-    ? formatContent(config.descriptionUp, {
-        TIMESTAMP: time.toUTCString(),
-      })
-    : formatContent(config.descriptionDown, {
-        TIMESTAMP: time.toUTCString(),
-      });
-
   const embed = new EmbedBuilder()
     .setColor(Number(config.color))
-    .setDescription(description)
+    .setDescription(
+      isWebsiteOnline
+        ? formatContent(config.descriptionUp, {
+            TIMESTAMP: time.toUTCString(),
+          })
+        : formatContent(config.descriptionDown, {
+            TIMESTAMP: time.toUTCString(),
+          }),
+    )
     .setTimestamp(time);
 
   return { embeds: [embed] };

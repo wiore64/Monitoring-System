@@ -1,4 +1,4 @@
-import { DnsError, toError, translateNetworkError } from "#shared/error.js";
+import { HttpError, TimeoutError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -82,19 +82,15 @@ async function checkWebsiteStatus(timeoutMs: number) {
     });
     return response.ok;
   } catch (thing: unknown) {
-    const error = toError(thing);
-
-    if (!error) {
-      throw new TypeError(`Non-error thrown: ${thing}`, error);
+    if (!(thing instanceof Error)) {
+      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
-    const translatedError = translateNetworkError(error);
-
-    if (translatedError instanceof DnsError) {
-      throw translatedError;
+    if (thing instanceof HttpError || thing instanceof TimeoutError) {
+      return false;
     }
 
-    return false;
+    throw thing;
   }
 }
 
