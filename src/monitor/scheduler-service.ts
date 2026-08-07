@@ -14,7 +14,10 @@ type SchedulerConfig = {
   [MonitorType.BlackfileIndex]: {
     initial: MonitorSchedule;
   };
-  [MonitorType.Filianislost]: {
+  [MonitorType.FilianislostAssets]: {
+    initial: MonitorSchedule;
+  };
+  [MonitorType.FilianislostStats]: {
     initial: MonitorSchedule;
   };
   [MonitorType.MinecraftInfo]: {
@@ -76,7 +79,17 @@ function initiateMonitor(monitor: SchedulerMonitor): void {
       );
       break;
 
-    case MonitorType.Filianislost:
+    case MonitorType.FilianislostAssets:
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
+      break;
+
+    case MonitorType.FilianislostStats:
       startMonitorInterval(
         monitor.type,
         {
