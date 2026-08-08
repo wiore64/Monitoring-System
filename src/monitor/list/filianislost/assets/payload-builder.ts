@@ -1,5 +1,8 @@
 import { readJsonFile } from "#utils/file.js";
-import { type Payload } from "#utils/message.js";
+import { formatContent, type Payload } from "#utils/message.js";
+import { EmbedBuilder } from "discord.js";
+
+import { type AssetName } from "./monitor.js";
 
 type PayloadConfig = {
   main: PayloadMainConfig;
@@ -22,11 +25,31 @@ const PAYLOAD_CONFIG_PATH = "./data/filianislost/assets/payload-config.json";
 export function buildMainPayload(time: Date): Payload {
   const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).main;
 
-  return {};
+  const embed = new EmbedBuilder()
+    .setColor(Number(config.color))
+    .setDescription(
+      formatContent(config.description, {
+        TIMESTAMP: time.toUTCString(),
+      }),
+    )
+    .setTimestamp(time);
+
+  return { embeds: [embed] };
 }
 
-export function buildUpdatePayload(time: Date): Payload {
+export function buildUpdatePayload(assetName: AssetName, time: Date): Payload {
   const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).update;
 
-  return {};
+  const embed = new EmbedBuilder()
+    .setColor(Number(config.color))
+    .setTitle(config.title)
+    .setDescription(
+      formatContent(config.description, {
+        TIMESTAMP: time.toUTCString(),
+        ASSET: assetName,
+      }),
+    )
+    .setTimestamp(time);
+
+  return { embeds: [embed] };
 }

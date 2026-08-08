@@ -27,15 +27,15 @@ export type MonitorContext = {
   "timeout-ms": number;
 };
 
-type AssetType = "html" | "css" | "js";
+export type AssetName = "html" | "css" | "js";
 
 type AssetHashes = {
-  [T in AssetType]: string;
+  [T in AssetName]: string;
 };
 
 type AssetHistory = {
   [time: string]: {
-    [T in AssetType]: string;
+    [T in AssetName]: string;
   };
 };
 
@@ -47,7 +47,7 @@ type AssetInfo = {
 };
 
 type AssetData = {
-  [T in AssetType]: AssetInfo;
+  [T in AssetName]: AssetInfo;
 };
 
 type AssetFetchResult = {
@@ -57,7 +57,7 @@ type AssetFetchResult = {
 
 type ComparisonResult = {
   hasChanged: boolean;
-  changedAssets: Set<keyof AssetHashes>;
+  changedAssets: Set<AssetName>;
 };
 
 export async function run(
@@ -121,24 +121,30 @@ async function fetchAssets(timeoutMs: number): Promise<AssetFetchResult> {
   const pageCssHash = crypto.createHash("sha256").update(pageCssText).digest("hex");
   const pageJsHash = crypto.createHash("sha256").update(pageJsText).digest("hex");
 
+  const [prettyHtml, prettyCss, prettyJs] = await Promise.all([
+    prettifyContent("html", pageHtmlText),
+    prettifyContent("css", pageCssText),
+    prettifyContent("js", pageJsText),
+  ]);
+
   return {
     data: {
       html: {
         name: "index.html",
         content: pageHtmlText,
-        prettyContent: await prettifyAsset("html", pageHtmlText),
+        prettyContent: prettyHtml,
         hash: pageHtmlHash,
       },
       css: {
         name: chunkCssName,
         content: pageCssText,
-        prettyContent: await prettifyAsset("css", pageCssText),
+        prettyContent: prettyCss,
         hash: pageCssHash,
       },
       js: {
         name: chunkJsName,
         content: pageJsText,
-        prettyContent: await prettifyAsset("js", pageJsText),
+        prettyContent: prettyJs,
         hash: pageJsHash,
       },
     },
@@ -154,7 +160,7 @@ async function fetchAssetContent(url: string, timeoutMs: number): Promise<string
   return (await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })).text();
 }
 
-async function prettifyAsset(assetType: AssetType, content: string): Promise<string> {
+async function prettifyContent(assetType: AssetName, content: string): Promise<string> {
   switch (assetType) {
     case "html":
       return await prettier.format(content, { parser: "html" });
@@ -182,6 +188,15 @@ async function initializeMonitor(
 
   state["message-id"] = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
+
+  storeChangedAssets(fetchResult.data, time.toISOString());
+  updateAssetHistory(
+    fetchResult.data.html.name,
+    fetchResult.data.css.name,
+    fetchResult.data.js.name,
+    time,
+  );
+  updateAssetHashes(fetchResult.hashes);
 
   info(LOG_NAME, "Initialized.", traceId);
 }
@@ -213,15 +228,36 @@ async function handleUpdate(
   messageId: string,
   time: Date,
   traceId: string,
-): Promise<void> {}
+): Promise<void> {
+  const mainPayload = buildMainPayload(time);
+  await editMessage(channelId, messageId, mainPayload);
+
+  for (const assetName of changedAssets) {
+    const updatePayload = buildUpdatePayload(assetName, time);
+    await sendMessage(channelId, updatePayload);
+
+    info(LOG_NAME, `${assetName} was updated.`, traceId);
+  }
+
+  storeChangedAssets(fetchResult.data, time.toISOString());
+  updateAssetHistory(
+    fetchResult.data.html.name,
+    fetchResult.data.css.name,
+    fetchResult.data.js.name,
+    time,
+  );
+  updateAssetHashes(fetchResult.hashes);
+}
 
 function storeChangedAssets(assetData: AssetData, timestamp: string): void {
-  const dirPath = `${MONITOR_ASSETS_PATH}/${timestamp.replaceAll(":", "-").slice(0, timestamp.length - 6)}`;
+  const directoryTimestamp = timestamp.replaceAll(":", "-").slice(0, timestamp.length - 6);
+  const dirPath = `${MONITOR_ASSETS_PATH}/${directoryTimestamp}`;
   createDirectory(dirPath);
 
   for (const [key, assetInfo] of Object.entries(assetData)) {
     writeFile(`${dirPath}/${assetInfo.name}`, assetInfo.content);
 
+    // html is already pretty enough!
     if (key === "html") {
       continue;
     }
@@ -230,12 +266,21 @@ function storeChangedAssets(assetData: AssetData, timestamp: string): void {
   }
 }
 
-function updateAssetHistory(cssAssetName: string, jsAssetName: string, time: Date) {
+function updateAssetHistory(
+  htmlAssetName: string,
+  cssAssetName: string,
+  jsAssetName: string,
+  time: Date,
+) {
   const currentHistory = readJsonFile<AssetHistory>(MONITOR_ASSET_HISTORY_PATH);
 
   writeJsonFile(MONITOR_ASSET_HISTORY_PATH, {
     ...currentHistory,
-    [time.toISOString()]: { css: cssAssetName, js: jsAssetName },
+    [time.toISOString()]: {
+      html: htmlAssetName,
+      css: cssAssetName,
+      js: jsAssetName,
+    },
   });
 }
 
