@@ -1,6 +1,7 @@
-import { type Payload, formatContent } from "#utils/message.js";
-import { readJsonFile } from "#utils/file.js";
 import { EmbedBuilder } from "discord.js";
+
+import { readJsonFile } from "#utils/file.js";
+import { formatContent, type Payload } from "#utils/message.js";
 
 const PAYLOAD_CONFIG_PATH = "./data/blackfile-index/payload-config.json";
 

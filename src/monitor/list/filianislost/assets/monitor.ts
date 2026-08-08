@@ -7,8 +7,9 @@ import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
+import { HttpError } from "#shared/error.js";
 
-const LOG_NAME = "filianislost";
+const LOG_NAME = "filianislost/assets";
 const MONITOR_CONFIG_PATH = "./data/filianislost/assets/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/filianislost/assets/monitor-state.json";
 const MONITOR_ASSETS_PATH = "./data/filianislost/assets/assets/snapshots";
@@ -157,7 +158,17 @@ async function fetchAssets(timeoutMs: number): Promise<AssetFetchResult> {
 }
 
 async function fetchAssetContent(url: string, timeoutMs: number): Promise<string> {
-  return (await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })).text();
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+
+  if (!response.ok) {
+    throw new HttpError(
+      "Failed to fetch asset content",
+      response.status.toString(),
+      response.statusText,
+    );
+  }
+
+  return await response.text();
 }
 
 async function prettifyContent(assetType: AssetName, content: string): Promise<string> {
@@ -271,7 +282,7 @@ function updateAssetHistory(
   cssAssetName: string,
   jsAssetName: string,
   time: Date,
-) {
+): void {
   const currentHistory = readJsonFile<AssetHistory>(MONITOR_ASSET_HISTORY_PATH);
 
   writeJsonFile(MONITOR_ASSET_HISTORY_PATH, {
@@ -284,6 +295,6 @@ function updateAssetHistory(
   });
 }
 
-function updateAssetHashes(hashes: AssetHashes) {
+function updateAssetHashes(hashes: AssetHashes): void {
   writeJsonFile(MONITOR_ASSET_HASHES_PATH, hashes);
 }
