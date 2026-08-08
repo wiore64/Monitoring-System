@@ -63,7 +63,7 @@ async function initializeMonitor(
   channelId: string,
   time: Date,
   traceId: string,
-) {
+): Promise<void> {
   const payload = buildMainPayload(isWebsiteOnline, time);
   const message = await sendMessage(channelId, payload);
 
@@ -75,7 +75,7 @@ async function initializeMonitor(
   info(LOG_NAME, "Initialized.", traceId);
 }
 
-async function checkWebsiteStatus(timeoutMs: number) {
+async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
   try {
     const response = await fetch("https://blackfile-index.org", {
       signal: AbortSignal.timeout(timeoutMs),
@@ -101,17 +101,13 @@ async function handleUpdate(
   messageId: string,
   time: Date,
   traceId: string,
-) {
+): Promise<void> {
   const mainPayload = buildMainPayload(isWebsiteOnline, time);
   await editMessage(channelId, messageId, mainPayload);
 
-  let updatePayload;
-
-  if (isWebsiteOnline) {
-    updatePayload = buildWebsiteUpPayload(time);
-  } else {
-    updatePayload = buildWebsiteDownPayload(time);
-  }
+  const updatePayload = isWebsiteOnline
+    ? buildWebsiteUpPayload(time)
+    : buildWebsiteDownPayload(time);
 
   await sendMessage(channelId, updatePayload);
 
