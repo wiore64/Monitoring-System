@@ -1,8 +1,11 @@
-import { readJsonFile } from "#utils/file.js";
-import { formatContent, type Payload } from "#utils/message.js";
 import { EmbedBuilder } from "discord.js";
 
+import { readJsonFile } from "#utils/file.js";
+import { formatContent, type Payload } from "#utils/message.js";
+
 import { type AssetName } from "./monitor.js";
+
+const PAYLOAD_CONFIG_PATH = "./data/filianislost/assets/payload-config.json";
 
 type PayloadConfig = {
   main: PayloadMainConfig;
@@ -19,8 +22,6 @@ type PayloadUpdateConfig = {
   title: string;
   description: string;
 };
-
-const PAYLOAD_CONFIG_PATH = "./data/filianislost/assets/payload-config.json";
 
 export function buildMainPayload(time: Date): Payload {
   const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).main;
