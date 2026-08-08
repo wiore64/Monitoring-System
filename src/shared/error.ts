@@ -9,7 +9,7 @@ abstract class ConnectionError extends Error {
   readonly code: string;
   readonly trace: string;
 
-  protected constructor(message: string, code: string, stack: string, cause: Error) {
+  protected constructor(message: string, code: string, stack: string, cause?: Error) {
     super(message, cause);
     this.name = "ConnectionError";
     this.code = code;
@@ -18,21 +18,30 @@ abstract class ConnectionError extends Error {
 }
 
 export class HttpError extends ConnectionError {
-  constructor(message: string, code: string, stack: string, cause: Error) {
+  constructor(message: string, code: string, stack: string);
+  constructor(message: string, code: string, stack: string, cause: Error);
+
+  constructor(message: string, code: string, stack: string, cause?: Error) {
     super(message, code, stack, cause);
     this.name = "HttpError";
   }
 }
 
 export class DnsError extends ConnectionError {
-  constructor(message: string, code: string, stack: string, cause: Error) {
+  constructor(message: string, code: string, stack: string);
+  constructor(message: string, code: string, stack: string, cause: Error);
+
+  constructor(message: string, code: string, stack: string, cause?: Error) {
     super(message, code, stack, cause);
     this.name = "DnsError";
   }
 }
 
 export class TimeoutError extends ConnectionError {
-  constructor(message: string, cause: Error) {
+  constructor(message: string);
+  constructor(message: string, cause: Error);
+
+  constructor(message: string, cause?: Error) {
     super(message, "", "", cause);
     this.name = "TimeoutError";
   }
