@@ -22,13 +22,17 @@ import {
   run as runMinecraftState,
 } from "./list/minecraft/state/monitor.js";
 import {
-  type MonitorContext as TwitterContext,
-  run as runTwitter,
-} from "./list/twitter/monitor.js";
+  type MonitorContext as TwitterFilianContext,
+  run as runTwitterFilian,
+} from "./list/twitter/filian/monitor.js";
 import {
-  type MonitorContext as YoutubeContext,
-  run as runYoutube,
-} from "./list/youtube/monitor.js";
+  type MonitorContext as TwitterWallContext,
+  run as runTwitterWall,
+} from "./list/twitter/wall/monitor.js";
+import {
+  type MonitorContext as YoutubeFilianContext,
+  run as runYoutubeFilian,
+} from "./list/youtube/filian/monitor.js";
 
 const LOG_NAME = "Monitor Service";
 
@@ -38,8 +42,9 @@ export const MonitorType = {
   FilianislostStats: "filianislost-stats",
   MinecraftInfo: "minecraft-info",
   MinecraftState: "minecraft-state",
-  Twitter: "twitter",
-  Youtube: "youtube",
+  TwitterFilian: "twitter-filian",
+  TwitterWall: "twitter-wall",
+  YoutubeFilian: "youtube-filian",
 } as const;
 
 export type MonitorType = (typeof MonitorType)[keyof typeof MonitorType];
@@ -50,8 +55,9 @@ type MonitorContext = {
   [MonitorType.FilianislostStats]: FilianislostStatsContext;
   [MonitorType.MinecraftInfo]: MinecraftInfoContext;
   [MonitorType.MinecraftState]: MinecraftStateContext;
-  [MonitorType.Twitter]: TwitterContext;
-  [MonitorType.Youtube]: YoutubeContext;
+  [MonitorType.TwitterFilian]: TwitterFilianContext;
+  [MonitorType.TwitterWall]: TwitterWallContext;
+  [MonitorType.YoutubeFilian]: YoutubeFilianContext;
 };
 
 type MonitorExecutor<T extends MonitorType> = (
@@ -68,8 +74,9 @@ export const MONITOR_PATHS: Record<MonitorType, string> = {
   [MonitorType.FilianislostStats]: "./list/filianislost/stats/monitor.js",
   [MonitorType.MinecraftInfo]: "./list/minecraft/info/monitor.js",
   [MonitorType.MinecraftState]: "./list/minecraft/state/monitor.js",
-  [MonitorType.Twitter]: "./list/twitter/monitor.js",
-  [MonitorType.Youtube]: "./list/youtube/monitor.js",
+  [MonitorType.TwitterFilian]: "./list/twitter/filian/monitor.js",
+  [MonitorType.TwitterWall]: "./list/twitter/wall/monitor.js",
+  [MonitorType.YoutubeFilian]: "./list/youtube/filian/monitor.js",
 } as const;
 
 const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
@@ -78,8 +85,9 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.FilianislostStats]: runFilianislostStats,
   [MonitorType.MinecraftInfo]: runMinecraftInfo,
   [MonitorType.MinecraftState]: runMinecraftState,
-  [MonitorType.Twitter]: runTwitter,
-  [MonitorType.Youtube]: runYoutube,
+  [MonitorType.TwitterFilian]: runTwitterFilian,
+  [MonitorType.TwitterWall]: runTwitterWall,
+  [MonitorType.YoutubeFilian]: runYoutubeFilian,
 } as const;
 
 const monitorIntervals: Map<MonitorType, NodeJS.Timeout> = new Map();

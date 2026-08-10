@@ -36,10 +36,13 @@ type SchedulerConfig = {
       offline: MonitorSchedule;
     };
   };
-  [MonitorType.Twitter]: {
+  [MonitorType.TwitterWall]: {
     initial: MonitorSchedule;
   };
-  [MonitorType.Youtube]: {
+  [MonitorType.TwitterFilian]: {
+    initial: MonitorSchedule;
+  };
+  [MonitorType.YoutubeFilian]: {
     initial: MonitorSchedule;
   };
 };
@@ -121,7 +124,7 @@ function initiateMonitor(monitor: SchedulerMonitor): void {
       setInterval(() => void adjustMinecraftStateMonitor(), monitor.config.adjustment.interval);
       break;
 
-    case MonitorType.Twitter:
+    case MonitorType.TwitterWall:
       startMonitorInterval(
         monitor.type,
         {
@@ -131,7 +134,17 @@ function initiateMonitor(monitor: SchedulerMonitor): void {
       );
       break;
 
-    case MonitorType.Youtube:
+    case MonitorType.TwitterFilian:
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
+      break;
+
+    case MonitorType.YoutubeFilian:
       startMonitorInterval(
         monitor.type,
         {
