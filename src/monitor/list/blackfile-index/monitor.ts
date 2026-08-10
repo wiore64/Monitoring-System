@@ -1,4 +1,4 @@
-import { HttpError, TimeoutError } from "#shared/error.js";
+import { DnsError, HttpError, TimeoutError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -37,7 +37,7 @@ export async function run(
   const isWebsiteOnline = await checkWebsiteStatus(context["timeout-ms"]);
 
   if (state["message-id"].length === 0) {
-    await initializeMonitor(isWebsiteOnline, state, config["channel-id"], time, traceId);
+    await initializeMonitor(state, isWebsiteOnline, config["channel-id"], time, traceId);
     return context;
   }
 
@@ -58,8 +58,8 @@ export async function run(
 }
 
 async function initializeMonitor(
-  isWebsiteOnline: boolean,
   state: MonitorState,
+  isWebsiteOnline: boolean,
   channelId: string,
   time: Date,
   traceId: string,
@@ -86,7 +86,7 @@ async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
       throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
-    if (thing instanceof HttpError || thing instanceof TimeoutError) {
+    if (thing instanceof HttpError || thing instanceof TimeoutError || thing instanceof DnsError) {
       return false;
     }
 
@@ -108,11 +108,10 @@ async function handleUpdate(
   const updatePayload = isWebsiteOnline
     ? buildWebsiteUpPayload(time)
     : buildWebsiteDownPayload(time);
-
   await sendMessage(channelId, updatePayload);
 
   state["is-website-online"] = isWebsiteOnline;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  info(LOG_NAME, `Website is ${isWebsiteOnline ? "up" : "down"}.`, traceId);
+  info(LOG_NAME, `Website went ${isWebsiteOnline ? "up" : "down"}.`, traceId);
 }

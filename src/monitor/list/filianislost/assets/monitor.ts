@@ -2,19 +2,19 @@ import crypto from "node:crypto";
 
 import prettier from "prettier";
 
+import { HttpError } from "#shared/error.js";
 import { createDirectory, readJsonFile, writeFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
-import { HttpError } from "#shared/error.js";
 
 const LOG_NAME = "filianislost/assets";
 const MONITOR_CONFIG_PATH = "./data/filianislost/assets/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/filianislost/assets/monitor-state.json";
-const MONITOR_ASSETS_PATH = "./data/filianislost/assets/assets/snapshots";
-const MONITOR_ASSET_HISTORY_PATH = "./data/filianislost/assets/asset-history.json";
-const MONITOR_ASSET_HASHES_PATH = "./data/filianislost/assets/asset-hashes.json";
+const ASSETS_SNAPSHOTS_PATH = "./data/filianislost/assets/assets/snapshots";
+const ASSET_HISTORY_PATH = "./data/filianislost/assets/asset-history.json";
+const ASSET_HASHES_PATH = "./data/filianislost/assets/asset-hashes.json";
 
 type MonitorConfig = {
   "channel-id": string;
@@ -35,7 +35,7 @@ type AssetHashes = {
 };
 
 type AssetHistory = {
-  [time: string]: {
+  [timestamp: string]: {
     [T in AssetName]: string;
   };
 };
@@ -57,7 +57,7 @@ type AssetFetchResult = {
 };
 
 type ComparisonResult = {
-  hasChanged: boolean;
+  hasChanges: boolean;
   changedAssets: Set<AssetName>;
 };
 
@@ -69,17 +69,17 @@ export async function run(
   const config = readJsonFile<MonitorConfig>(MONITOR_CONFIG_PATH);
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
-  const oldAssetHashes = readJsonFile<AssetHashes>(MONITOR_ASSET_HASHES_PATH);
+  const oldAssetHashes = readJsonFile<AssetHashes>(ASSET_HASHES_PATH);
   const fetchResult = await fetchAssets(context["timeout-ms"]);
 
   if (state["message-id"].length === 0) {
-    await initializeMonitor(fetchResult, state, config["channel-id"], time, traceId);
+    await initializeMonitor(state, fetchResult, config["channel-id"], time, traceId);
     return context;
   }
 
   const comparisonResult = compareAssets(oldAssetHashes, fetchResult.hashes);
 
-  if (!comparisonResult.hasChanged) {
+  if (!comparisonResult.hasChanges) {
     return context;
   }
 
@@ -162,7 +162,7 @@ async function fetchAssetContent(url: string, timeoutMs: number): Promise<string
 
   if (!response.ok) {
     throw new HttpError(
-      "Failed to fetch asset content",
+      "Failed to fetch asset content.",
       response.status.toString(),
       response.statusText,
     );
@@ -188,8 +188,8 @@ async function prettifyContent(assetType: AssetName, content: string): Promise<s
 }
 
 async function initializeMonitor(
-  fetchResult: AssetFetchResult,
   state: MonitorState,
+  fetchResult: AssetFetchResult,
   channelId: string,
   time: Date,
   traceId: string,
@@ -215,19 +215,16 @@ async function initializeMonitor(
 function compareAssets(newAssetHashes: AssetHashes, oldAssetHashes: AssetHashes): ComparisonResult {
   const changedAssets = new Set<keyof AssetHashes>();
 
-  for (const [key, newHash] of Object.entries(newAssetHashes)) {
-    // The key is guaranteed to be a keyof AssetHashes
-    const oldHash = oldAssetHashes[key as keyof AssetHashes];
-
-    if (newHash === oldHash) {
+  for (const key of Object.keys(newAssetHashes) as (keyof AssetHashes)[]) {
+    if (newAssetHashes[key] === oldAssetHashes[key]) {
       continue;
     }
 
-    changedAssets.add(key as keyof AssetHashes);
+    changedAssets.add(key);
   }
 
   return {
-    hasChanged: changedAssets.size > 0,
+    hasChanges: changedAssets.size > 0,
     changedAssets,
   };
 }
@@ -247,7 +244,7 @@ async function handleUpdate(
     const updatePayload = buildUpdatePayload(assetName, time);
     await sendMessage(channelId, updatePayload);
 
-    info(LOG_NAME, `${assetName} was updated.`, traceId);
+    info(LOG_NAME, `${assetName} observed to be updated.`, traceId);
   }
 
   storeChangedAssets(fetchResult.data, time.toISOString());
@@ -262,7 +259,7 @@ async function handleUpdate(
 
 function storeChangedAssets(assetData: AssetData, timestamp: string): void {
   const directoryTimestamp = timestamp.replaceAll(":", "-").slice(0, timestamp.length - 6);
-  const dirPath = `${MONITOR_ASSETS_PATH}/${directoryTimestamp}`;
+  const dirPath = `${ASSETS_SNAPSHOTS_PATH}/${directoryTimestamp}`;
   createDirectory(dirPath);
 
   for (const [key, assetInfo] of Object.entries(assetData)) {
@@ -283,9 +280,9 @@ function updateAssetHistory(
   jsAssetName: string,
   time: Date,
 ): void {
-  const currentHistory = readJsonFile<AssetHistory>(MONITOR_ASSET_HISTORY_PATH);
+  const currentHistory = readJsonFile<AssetHistory>(ASSET_HISTORY_PATH);
 
-  writeJsonFile(MONITOR_ASSET_HISTORY_PATH, {
+  writeJsonFile(ASSET_HISTORY_PATH, {
     ...currentHistory,
     [time.toISOString()]: {
       html: htmlAssetName,
@@ -296,5 +293,5 @@ function updateAssetHistory(
 }
 
 function updateAssetHashes(hashes: AssetHashes): void {
-  writeJsonFile(MONITOR_ASSET_HASHES_PATH, hashes);
+  writeJsonFile(ASSET_HASHES_PATH, hashes);
 }

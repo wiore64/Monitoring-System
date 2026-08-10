@@ -6,27 +6,21 @@ import { formatContent, type Payload } from "#utils/message.js";
 const PAYLOAD_CONFIG_PATH = "./data/blackfile-index/payload-config.json";
 
 type PayloadConfig = {
-  main: MainPayloadConfig;
-  websiteUp: WebsiteUpPayloadConfig;
-  websiteDown: WebsiteDownPayloadConfig;
-};
-
-type MainPayloadConfig = {
-  color: string;
-  descriptionUp: string;
-  descriptionDown: string;
-};
-
-type WebsiteUpPayloadConfig = {
-  color: string;
-  title: string;
-  description: string;
-};
-
-type WebsiteDownPayloadConfig = {
-  color: string;
-  title: string;
-  description: string;
+  main: {
+    color: string;
+    descriptionUp: string;
+    descriptionDown: string;
+  };
+  websiteUp: {
+    color: string;
+    title: string;
+    description: string;
+  };
+  websiteDown: {
+    color: string;
+    title: string;
+    description: string;
+  };
 };
 
 export function buildMainPayload(isWebsiteOnline: boolean, time: Date): Payload {

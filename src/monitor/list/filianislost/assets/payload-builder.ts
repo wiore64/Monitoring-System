@@ -8,19 +8,15 @@ import { type AssetName } from "./monitor.js";
 const PAYLOAD_CONFIG_PATH = "./data/filianislost/assets/payload-config.json";
 
 type PayloadConfig = {
-  main: PayloadMainConfig;
-  update: PayloadUpdateConfig;
-};
-
-type PayloadMainConfig = {
-  color: string;
-  description: string;
-};
-
-type PayloadUpdateConfig = {
-  color: string;
-  title: string;
-  description: string;
+  main: {
+    color: string;
+    description: string;
+  };
+  update: {
+    color: string;
+    title: string;
+    description: string;
+  };
 };
 
 export function buildMainPayload(time: Date): Payload {
@@ -46,8 +42,8 @@ export function buildUpdatePayload(assetName: AssetName, time: Date): Payload {
     .setTitle(config.title)
     .setDescription(
       formatContent(config.description, {
-        TIMESTAMP: time.toUTCString(),
         ASSET: assetName,
+        TIMESTAMP: time.toUTCString(),
       }),
     )
     .setTimestamp(time);
