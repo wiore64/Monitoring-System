@@ -30,6 +30,10 @@ import {
   run as runTwitterWall,
 } from "./list/twitter/wall/monitor.js";
 import {
+  type MonitorContext as TrademarkContext,
+  run as runTrademark,
+} from "./list/trademark/monitor.js";
+import {
   type MonitorContext as YoutubeFilianContext,
   run as runYoutubeFilian,
 } from "./list/youtube/filian/monitor.js";
@@ -44,6 +48,7 @@ export const MonitorType = {
   MinecraftState: "minecraft-state",
   TwitterFilian: "twitter-filian",
   TwitterWall: "twitter-wall",
+  Trademark: "trademark",
   YoutubeFilian: "youtube-filian",
 } as const;
 
@@ -57,6 +62,7 @@ type MonitorContext = {
   [MonitorType.MinecraftState]: MinecraftStateContext;
   [MonitorType.TwitterFilian]: TwitterFilianContext;
   [MonitorType.TwitterWall]: TwitterWallContext;
+  [MonitorType.Trademark]: TrademarkContext;
   [MonitorType.YoutubeFilian]: YoutubeFilianContext;
 };
 
@@ -76,6 +82,7 @@ export const MONITOR_PATHS: Record<MonitorType, string> = {
   [MonitorType.MinecraftState]: "./list/minecraft/state/monitor.js",
   [MonitorType.TwitterFilian]: "./list/twitter/filian/monitor.js",
   [MonitorType.TwitterWall]: "./list/twitter/wall/monitor.js",
+  [MonitorType.Trademark]: "./list/trademark/monitor.js",
   [MonitorType.YoutubeFilian]: "./list/youtube/filian/monitor.js",
 } as const;
 
@@ -87,6 +94,7 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.MinecraftState]: runMinecraftState,
   [MonitorType.TwitterFilian]: runTwitterFilian,
   [MonitorType.TwitterWall]: runTwitterWall,
+  [MonitorType.Trademark]: runTrademark,
   [MonitorType.YoutubeFilian]: runYoutubeFilian,
 } as const;
 

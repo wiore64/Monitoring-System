@@ -42,6 +42,9 @@ type SchedulerConfig = {
   [MonitorType.TwitterFilian]: {
     initial: MonitorSchedule;
   };
+  [MonitorType.Trademark]: {
+    initial: MonitorSchedule;
+  };
   [MonitorType.YoutubeFilian]: {
     initial: MonitorSchedule;
   };
@@ -135,6 +138,16 @@ function initiateMonitor(monitor: SchedulerMonitor): void {
       break;
 
     case MonitorType.TwitterFilian:
+      startMonitorInterval(
+        monitor.type,
+        {
+          "timeout-ms": monitor.config.initial.timeout,
+        },
+        monitor.config.initial.interval,
+      );
+      break;
+
+    case MonitorType.Trademark:
       startMonitorInterval(
         monitor.type,
         {
