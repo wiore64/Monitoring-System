@@ -69,7 +69,6 @@ async function initializeMonitor(
 
   state["message-id"] = message.id;
   state["is-website-online"] = isWebsiteOnline;
-
   writeJsonFile(MONITOR_STATE_PATH, state);
 
   info(LOG_NAME, "Initialized.", traceId);

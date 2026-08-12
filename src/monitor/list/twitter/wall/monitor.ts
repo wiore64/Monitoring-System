@@ -115,6 +115,7 @@ async function fetchLatestPosts(
 
 async function initializeMonitor(state: MonitorState, latestPosts: LatestPosts): Promise<void> {
   state["is-initialized"] = true;
+  writeJsonFile(MONITOR_STATE_PATH, state);
 
   updateLatestPosts(latestPosts);
 }
