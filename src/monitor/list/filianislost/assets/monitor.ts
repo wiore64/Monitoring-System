@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import prettier from "prettier";
 
+import { config } from "#data/filianislost/assets/monitor-config.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { createDirectory, readJsonFile, writeFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -10,15 +11,10 @@ import { editMessage, sendMessage } from "#utils/message.js";
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "filianislost/assets";
-const MONITOR_CONFIG_PATH = "./data/filianislost/assets/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/filianislost/assets/monitor-state.json";
 const ASSETS_SNAPSHOTS_PATH = "./data/filianislost/assets/assets/snapshots";
 const ASSET_HISTORY_PATH = "./data/filianislost/assets/asset-history.json";
 const ASSET_HASHES_PATH = "./data/filianislost/assets/asset-hashes.json";
-
-type MonitorConfig = {
-  "channel-id": string;
-};
 
 type MonitorState = {
   "message-id": string;
@@ -66,7 +62,6 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const config = readJsonFile<MonitorConfig>(MONITOR_CONFIG_PATH);
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
   const oldAssetHashes = readJsonFile<AssetHashes>(ASSET_HASHES_PATH);

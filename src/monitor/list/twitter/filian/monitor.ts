@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import { config as globalConfig } from "#/config.js";
+import config from "#data/twitter/filian/monitor-config.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -9,13 +10,8 @@ import { sendMessage } from "#utils/message.js";
 import { buildUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "twitter/filian";
-const MONITOR_CONFIG_PATH = "./data/twitter/filian/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/twitter/filian/monitor-state.json";
 const LATEST_POSTS_INFO_PATH = "./data/twitter/filian/latest-posts-info.json";
-
-type MonitorConfig = {
-  "channel-id": string;
-};
 
 type MonitorState = {
   "is-initialized": boolean;
@@ -46,7 +42,6 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const config = readJsonFile<MonitorConfig>(MONITOR_CONFIG_PATH);
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
   const oldLatestPosts = readJsonFile<LatestPosts>(LATEST_POSTS_INFO_PATH);

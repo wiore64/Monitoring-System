@@ -1,3 +1,4 @@
+import config from "#data/filianislost/stats/monitor-config.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -6,13 +7,8 @@ import { editMessage, sendMessage } from "#utils/message.js";
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "filianislost/stats";
-const MONITOR_CONFIG_PATH = "./data/filianislost/stats/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/filianislost/stats/monitor-state.json";
 const STATS_INFO_PATH = "./data/filianislost/stats/monitor-stats.json";
-
-type MonitorConfig = {
-  "channel-id": string;
-};
 
 type MonitorState = {
   "message-id": string;
@@ -44,7 +40,6 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const config = readJsonFile<MonitorConfig>(MONITOR_CONFIG_PATH);
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
   const oldStats = readJsonFile<SignalStats>(STATS_INFO_PATH);

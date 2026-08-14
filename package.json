@@ -17,11 +17,12 @@
       "production": "./dist/*.js",
       "development": "./src/*.ts"
     },
+    "#data/*.json": "./data/*.json",
     "#monitor/*.js": {
       "production": "./dist/monitor/*.js",
       "development": "./src/monitor/*.ts"
     },
-    "#shared/*": {
+    "#shared/*.js": {
       "production": "./dist/shared/*.js",
       "development": "./src/shared/*.ts"
     },

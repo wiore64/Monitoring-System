@@ -1,14 +1,15 @@
 import net from "node:net";
 
+import config from "#data/minecraft/info/monitor-config.json" with { type: "json" };
 import { DnsError, translateNetworkError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
+import { isInDayOfWeekAndTimeRange } from "../time.js";
 
 const LOG_NAME = "minecraft/info";
-const MONITOR_CONFIG_PATH = "./data/minecraft/info/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/minecraft/info/monitor-state.json";
 const SERVER_INFO_PATH = "./data/minecraft/info/server-info.json";
 
@@ -23,13 +24,13 @@ const OFFLINE_SERVER_DATA = {
 };
 
 export const schedulerHooks = {
-  isNearRestartWindow: (): boolean => {
-    return true;
+  isNearRestartWindow: (now: Date): boolean => {
+    return isInDayOfWeekAndTimeRange(
+      config["restart-window"].near.start,
+      config["restart-window"].near.end,
+      now,
+    );
   },
-};
-
-type MonitorConfig = {
-  "channel-id": string;
 };
 
 type MonitorState = {
@@ -69,7 +70,6 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const config = readJsonFile<MonitorConfig>(MONITOR_CONFIG_PATH);
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
   const oldServerInfo = readJsonFile<ServerInfo>(SERVER_INFO_PATH);

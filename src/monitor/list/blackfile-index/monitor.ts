@@ -1,3 +1,4 @@
+import { config } from "#data/blackfile-index/monitor-config.json" with { type: "json" };
 import { DnsError, HttpError, TimeoutError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -10,12 +11,7 @@ import {
 } from "./payload-builder.js";
 
 const LOG_NAME = "blackfile-index";
-const MONITOR_CONFIG_PATH = "./data/blackfile-index/monitor-config.json";
 const MONITOR_STATE_PATH = "./data/blackfile-index/monitor-state.json";
-
-type MonitorConfig = {
-  "channel-id": string;
-};
 
 type MonitorState = {
   "message-id": string;
@@ -31,7 +27,6 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const config = readJsonFile<MonitorConfig>(MONITOR_CONFIG_PATH);
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
   const isWebsiteOnline = await checkWebsiteStatus(context["timeout-ms"]);
