@@ -87,6 +87,7 @@ export async function run(
   }
 
   await handleUpdate(
+    fetchResult.isUnavailable,
     fetchResult.info,
     comparisonResult.changedInfo,
     config["channel-id"],
@@ -234,6 +235,7 @@ function compareServerInfo(newServerInfo: ServerInfo, oldServerInfo: ServerInfo)
 }
 
 async function handleUpdate(
+  isUnavailable: boolean,
   serverInfo: ServerInfo,
   changedServerInfo: ChangedServerInfo,
   channelId: string,
@@ -243,6 +245,10 @@ async function handleUpdate(
 ): Promise<void> {
   const mainPayload = buildMainPayload(serverInfo, time);
   await editMessage(channelId, messageId, mainPayload);
+
+  if (isUnavailable) {
+    return;
+  }
 
   for (const [key, { oldValue, newValue }] of Object.entries(changedServerInfo)) {
     if (["online"].includes(key)) {
