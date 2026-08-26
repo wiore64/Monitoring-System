@@ -18,21 +18,23 @@ abstract class ConnectionError extends Error {
 }
 
 export class HttpError extends ConnectionError {
+  constructor(message: string, code: string);
   constructor(message: string, code: string, stack: string);
   constructor(message: string, code: string, stack: string, cause: Error);
 
-  constructor(message: string, code: string, stack: string, cause?: Error) {
-    super(message, code, stack, cause);
+  constructor(message: string, code: string, stack?: string, cause?: Error) {
+    super(message, code, stack ?? "", cause);
     this.name = "HttpError";
   }
 }
 
 export class DnsError extends ConnectionError {
+  constructor(message: string, code: string);
   constructor(message: string, code: string, stack: string);
   constructor(message: string, code: string, stack: string, cause: Error);
 
-  constructor(message: string, code: string, stack: string, cause?: Error) {
-    super(message, code, stack, cause);
+  constructor(message: string, code: string, stack?: string, cause?: Error) {
+    super(message, code, stack ?? "", cause);
     this.name = "DnsError";
   }
 }
@@ -45,6 +47,10 @@ export class TimeoutError extends ConnectionError {
     super(message, "", "", cause);
     this.name = "TimeoutError";
   }
+}
+
+export function isConnectionError(error: Error): boolean {
+  return error instanceof ConnectionError;
 }
 
 export function toError(thing: unknown): Error | undefined {

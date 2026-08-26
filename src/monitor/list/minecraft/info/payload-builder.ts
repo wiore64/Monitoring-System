@@ -1,51 +1,15 @@
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 
-import { readJsonFile } from "#utils/file.js";
+import config from "#data/minecraft/info/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
 import { type ServerInfo } from "./monitor.js";
 
-const PAYLOAD_CONFIG_PATH = "./data/minecraft/info/payload-config.json";
-
-type PayloadConfig = {
-  main: {
-    general: {
-      color: string;
-      description: string;
-    };
-    motd: {
-      color: string;
-      title: string;
-    };
-    icon: {
-      color: string;
-      title: string;
-    };
-  };
-  update: {
-    general: {
-      color: string;
-      title: string;
-      description: string;
-    };
-    new: {
-      color: string;
-      title: string;
-    };
-    old: {
-      color: string;
-      title: string;
-    };
-  };
-};
-
 export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).main;
-
   const generalEmbed = new EmbedBuilder()
-    .setColor(Number(config.general.color))
+    .setColor(Number(config.main.general.color))
     .setDescription(
-      formatContent(config.general.description, {
+      formatContent(config.main.general.description, {
         VERSION: serverInfo.version,
         PROTOCOL: serverInfo.protocol,
         ONLINE: serverInfo.online,
@@ -56,8 +20,8 @@ export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
     .setTimestamp(time);
 
   const motdEmbed = new EmbedBuilder()
-    .setColor(Number(config.motd.color))
-    .setTitle(config.motd.title)
+    .setColor(Number(config.main.motd.color))
+    .setTitle(config.main.motd.title)
     .setDescription(serverInfo.motd)
     .setTimestamp(time);
 
@@ -65,8 +29,8 @@ export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
     name: "icon.png",
   });
   const iconEmbed = new EmbedBuilder()
-    .setColor(Number(config.icon.color))
-    .setTitle(config.icon.title)
+    .setColor(Number(config.main.icon.color))
+    .setTitle(config.main.icon.title)
     .setImage("attachment://icon.png")
     .setTimestamp(time);
 
@@ -81,26 +45,25 @@ export function buildUpdatePayload<K extends keyof ServerInfo>(
   newValue: ServerInfo[K],
   time: Date,
 ): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).update;
-
   const generalEmbed = new EmbedBuilder()
-    .setColor(Number(config.general.color))
-    .setTitle(config.general.title)
+    .setColor(Number(config.update.general.color))
+    .setTitle(config.update.general.title)
     .setDescription(
-      formatContent(config.general.description, {
+      formatContent(config.update.general.description, {
+        TARGET: key,
         TIMESTAMP: time.toUTCString(),
       }),
     )
     .setTimestamp(time);
 
   const newVersionEmbed = new EmbedBuilder()
-    .setColor(Number(config.new.color))
-    .setTitle(config.new.title)
+    .setColor(Number(config.update.new.color))
+    .setTitle(config.update.new.title)
     .setTimestamp(time);
 
   const oldVersionEmbed = new EmbedBuilder()
-    .setColor(Number(config.old.color))
-    .setTitle(config.old.title)
+    .setColor(Number(config.update.old.color))
+    .setTitle(config.update.old.title)
     .setTimestamp(time);
 
   const payload: Payload = { embeds: [generalEmbed, newVersionEmbed, oldVersionEmbed] };

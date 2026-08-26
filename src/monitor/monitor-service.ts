@@ -14,6 +14,10 @@ import {
   run as runFilianislostStats,
 } from "./list/filianislost/stats/monitor.js";
 import {
+  type MonitorContext as TwitterWallContext,
+  run as runTwitterWall,
+} from "./list/filianislost/twitter/monitor.js";
+import {
   type MonitorContext as MinecraftInfoContext,
   run as runMinecraftInfo,
 } from "./list/minecraft/info/monitor.js";
@@ -24,19 +28,15 @@ import {
 import {
   type MonitorContext as TwitterFilianContext,
   run as runTwitterFilian,
-} from "./list/twitter/filian/monitor.js";
-import {
-  type MonitorContext as TwitterWallContext,
-  run as runTwitterWall,
-} from "./list/twitter/wall/monitor.js";
+} from "./list/socials/twitter/monitor.js";
 import {
   type MonitorContext as TrademarkContext,
-  run as runTrademark,
-} from "./list/trademark/monitor.js";
+  run as runTrademarks,
+} from "./list/other/trademarks/monitor.js";
 import {
   type MonitorContext as YoutubeFilianContext,
   run as runYoutubeFilian,
-} from "./list/youtube/filian/monitor.js";
+} from "./list/socials/youtube/monitor.js";
 
 const LOG_NAME = "Monitor Service";
 
@@ -48,7 +48,7 @@ export const MonitorType = {
   MinecraftState: "minecraft-state",
   TwitterFilian: "twitter-filian",
   TwitterWall: "twitter-wall",
-  Trademark: "trademark",
+  Trademark: "trademarks",
   YoutubeFilian: "youtube-filian",
 } as const;
 
@@ -94,7 +94,7 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.MinecraftState]: runMinecraftState,
   [MonitorType.TwitterFilian]: runTwitterFilian,
   [MonitorType.TwitterWall]: runTwitterWall,
-  [MonitorType.Trademark]: runTrademark,
+  [MonitorType.Trademark]: runTrademarks,
   [MonitorType.YoutubeFilian]: runYoutubeFilian,
 } as const;
 

@@ -1,21 +1,24 @@
 import config from "#data/filianislost/stats/monitor-config.json" with { type: "json" };
+import state from "#data/filianislost/stats/monitor-state.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 
-import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
+import { buildMainPayload, buildSignalPayload, buildUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "filianislost/stats";
 const MONITOR_STATE_PATH = "./data/filianislost/stats/monitor-state.json";
-const STATS_INFO_PATH = "./data/filianislost/stats/monitor-stats.json";
-
-type MonitorState = {
-  "message-id": string;
-};
+const STATS_INFO_PATH = "./data/filianislost/stats/website-stats.json";
 
 export type MonitorContext = {
-  "timeout-ms": number;
+  timeoutMs: number;
+};
+
+type WebsiteResponse = {
+  users: number;
+  signals: number;
+  approved: number;
 };
 
 export type SignalStats = {
@@ -29,10 +32,13 @@ type ComparisonResult = {
   changedStats: Partial<SignalStats>;
 };
 
-type WebsiteResponse = {
-  users: number;
-  signals: number;
-  approved: number;
+export type SignalInfo = {
+  num_id: number;
+  name: string;
+  location: string;
+  tag: string;
+  image_file: string;
+  submitted_at: string;
 };
 
 export async function run(
@@ -40,17 +46,15 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
-
   const oldStats = readJsonFile<SignalStats>(STATS_INFO_PATH);
-  const newStats = await fetchSignalStats(context["timeout-ms"]);
+  const newStats = await fetchSignalStats(context.timeoutMs);
 
-  if (state["message-id"].length === 0) {
-    await initializeMonitor(state, newStats, config["channel-id"], time, traceId);
+  if (state.messageId.length === 0) {
+    await initializeMonitor(newStats, config["channel-id"], time, traceId);
     return context;
   }
 
-  const result = compareStats(oldStats, newStats);
+  const result = compareStats(newStats, oldStats);
 
   if (!result.hasChanges) {
     return context;
@@ -58,9 +62,10 @@ export async function run(
 
   await handleUpdate(
     newStats,
-    result.changedStats,
+    oldStats,
     config["channel-id"],
-    state["message-id"],
+    state.messageId,
+    context.timeoutMs,
     time,
     traceId,
   );
@@ -76,8 +81,8 @@ async function fetchSignalStats(timeoutMs: number): Promise<SignalStats> {
   if (!response.ok) {
     throw new HttpError(
       "Failed to fetch signal stats.",
-      response.status.toString(),
       response.statusText,
+      `${response.status} ${response.statusText}`,
     );
   }
 
@@ -91,7 +96,6 @@ async function fetchSignalStats(timeoutMs: number): Promise<SignalStats> {
 }
 
 async function initializeMonitor(
-  state: MonitorState,
   stats: SignalStats,
   channelId: string,
   time: Date,
@@ -100,15 +104,15 @@ async function initializeMonitor(
   const payload = buildMainPayload(stats, time);
   const message = await sendMessage(channelId, payload);
 
-  state["message-id"] = message.id;
+  state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  updateSignalStats(stats);
+  writeJsonFile(STATS_INFO_PATH, stats);
 
   info(LOG_NAME, "Initialized.", traceId);
 }
 
-function compareStats(oldStats: SignalStats, newStats: SignalStats): ComparisonResult {
+function compareStats(newStats: SignalStats, oldStats: SignalStats): ComparisonResult {
   const changedStats: Partial<SignalStats> = {};
 
   for (const key of Object.keys(newStats) as (keyof SignalStats)[]) {
@@ -126,30 +130,56 @@ function compareStats(oldStats: SignalStats, newStats: SignalStats): ComparisonR
 }
 
 async function handleUpdate(
-  stats: SignalStats,
-  changedStats: Partial<SignalStats>,
+  newStats: SignalStats,
+  oldStats: SignalStats,
   channelId: string,
   messageId: string,
+  timeoutMs: number,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(stats, time);
+  const mainPayload = buildMainPayload(newStats, time);
   await editMessage(channelId, messageId, mainPayload);
 
-  for (const key of Object.keys(changedStats) as (keyof SignalStats)[]) {
-    if (["userCount", "signalCount"].includes(key)) {
-      continue;
-    }
+  const count = newStats.approvedSignalCount - oldStats.approvedSignalCount;
 
-    const updatePayload = buildUpdatePayload(time);
+  if (count !== 0) {
+    const updatePayload = buildUpdatePayload(count, time);
     await sendMessage(channelId, updatePayload);
 
-    info(LOG_NAME, `New signal observed.`, traceId);
+    const newSignalsInfo = await postNewSignals(count, timeoutMs);
+
+    for (const newSignalInfo of newSignalsInfo) {
+      const signalPayload = buildSignalPayload(newSignalInfo, time);
+      await sendMessage(channelId, signalPayload);
+    }
+
+    info(LOG_NAME, `${count} signal(s) observed.`, traceId);
   }
 
-  updateSignalStats(stats);
+  writeJsonFile(STATS_INFO_PATH, newStats);
 }
 
-function updateSignalStats(stats: SignalStats): void {
-  writeJsonFile(STATS_INFO_PATH, stats);
+async function postNewSignals(count: number, timeoutMs: number): Promise<SignalInfo[]> {
+  const newSignalsInfoResponse = await fetch(
+    `https://signal.filianislost.com/fetch?limit=${count}&desc=1`,
+    { signal: AbortSignal.timeout(timeoutMs) },
+  );
+
+  if (!newSignalsInfoResponse.ok) {
+    throw new HttpError(
+      "Failed to fetch new signals information.",
+      newSignalsInfoResponse.statusText,
+      `${newSignalsInfoResponse.status} ${newSignalsInfoResponse.statusText}`,
+    );
+  }
+
+  const newSignalsInfo = (await newSignalsInfoResponse.json()) as SignalInfo[];
+
+  return newSignalsInfo.map((newSignalInfo) => {
+    return {
+      ...newSignalInfo,
+      image_file: `https://signal.filianislost.com/static/uploads/${newSignalInfo.image_file}`,
+    };
+  });
 }

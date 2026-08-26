@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
-import { config as globalConfig } from "#/config.js";
-import config from "#data/twitter/wall/monitor-config.json" with { type: "json" };
+import { config as globalConfig } from "#root/config.js";
+import config from "#data/socials/twitter/monitor-config.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -9,9 +9,9 @@ import { sendMessage } from "#utils/message.js";
 
 import { buildUpdatePayload } from "./payload-builder.js";
 
-const LOG_NAME = "twitter/wall";
-const MONITOR_STATE_PATH = "./data/twitter/wall/monitor-state.json";
-const LATEST_POSTS_INFO_PATH = "./data/twitter/wall/latest-posts-info.json";
+const LOG_NAME = "twitter/filian";
+const MONITOR_STATE_PATH = "./data/socials/twitter/monitor-state.json";
+const LATEST_POSTS_INFO_PATH = "./data/socials/twitter/latest-posts-info.json";
 
 type MonitorState = {
   "is-initialized": boolean;
@@ -66,7 +66,7 @@ async function fetchLatestPosts(
   timeoutMs: number,
 ): Promise<LatestPosts> {
   const response = await fetch(
-    "https://x.com/i/api/graphql/hr4gzZONlq23okjU8fIe_A/UserTweets?variables=%7B%22userId%22%3A%222061261454637228032%22%2C%22count%22%3A20%2C%22includePromotedContent%22%3Afalse%2C%22withVoice%22%3Afalse%7D",
+    "https://x.com/i/api/graphql/hr4gzZONlq23okjU8fIe_A/UserTweets?variables=%7B%22userId%22%3A%221389652567941165058%22%2C%22count%22%3A20%2C%22includePromotedContent%22%3Afalse%2C%22withVoice%22%3Afalse%7D",
     {
       method: "GET",
       headers: {

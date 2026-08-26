@@ -1,25 +1,30 @@
-import { config } from "#data/blackfile-index/monitor-config.json" with { type: "json" };
-import { DnsError, HttpError, TimeoutError } from "#shared/error.js";
+import config from "#data/blackfile-index/monitor-config.json" with { type: "json" };
+import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
+import { isConnectionError, translateNetworkError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
-import { info } from "#utils/logger.js";
+import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
+import { findDifference, formatTimestamp } from "#utils/time.js";
 
 import {
   buildMainPayload,
-  buildWebsiteUpPayload,
-  buildWebsiteDownPayload,
+  buildWebsiteAvailablePayload,
+  buildWebsiteReturnPayload,
+  buildWebsiteUnavailablePayload,
 } from "./payload-builder.js";
 
 const LOG_NAME = "blackfile-index";
 const MONITOR_STATE_PATH = "./data/blackfile-index/monitor-state.json";
-
-type MonitorState = {
-  "message-id": string;
-  "is-website-online": boolean;
-};
+const WEBSITE_STATE_PATH = "./data/blackfile-index/website-state.json";
 
 export type MonitorContext = {
-  "timeout-ms": number;
+  timeoutMs: number;
+};
+
+type WebsiteState = {
+  hasReturned: boolean;
+  isAvailable: boolean;
+  lastAvailabilityChangeTimestamp: string;
 };
 
 export async function run(
@@ -27,24 +32,23 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
+  const oldWebsiteState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
+  const isWebsiteAvailable = await checkWebsiteStatus(context.timeoutMs);
 
-  const isWebsiteOnline = await checkWebsiteStatus(context["timeout-ms"]);
-
-  if (state["message-id"].length === 0) {
-    await initializeMonitor(state, isWebsiteOnline, config["channel-id"], time, traceId);
+  if (state.messageId.length === 0) {
+    await initializeMonitor(isWebsiteAvailable, oldWebsiteState, config["channel-id"], traceId);
     return context;
   }
 
-  if (isWebsiteOnline === state["is-website-online"]) {
+  if (isWebsiteAvailable === oldWebsiteState.isAvailable) {
     return context;
   }
 
   await handleUpdate(
-    isWebsiteOnline,
-    state,
+    isWebsiteAvailable,
+    oldWebsiteState,
     config["channel-id"],
-    state["message-id"],
+    state.messageId,
     time,
     traceId,
   );
@@ -53,18 +57,21 @@ export async function run(
 }
 
 async function initializeMonitor(
-  state: MonitorState,
-  isWebsiteOnline: boolean,
+  isWebsiteAvailable: boolean,
+  websiteState: WebsiteState,
   channelId: string,
-  time: Date,
   traceId: string,
 ): Promise<void> {
-  const payload = buildMainPayload(isWebsiteOnline, time);
+  const payload = buildMainPayload(isWebsiteAvailable, new Date("2026-05-07T03:40:00Z"));
   const message = await sendMessage(channelId, payload);
 
-  state["message-id"] = message.id;
-  state["is-website-online"] = isWebsiteOnline;
+  state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
+
+  websiteState.hasReturned = isWebsiteAvailable;
+  websiteState.isAvailable = isWebsiteAvailable;
+  websiteState.lastAvailabilityChangeTimestamp = "2026-05-07T03:40:00Z";
+  writeJsonFile(WEBSITE_STATE_PATH, websiteState);
 
   info(LOG_NAME, "Initialized.", traceId);
 }
@@ -80,7 +87,15 @@ async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
       throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
-    if (thing instanceof HttpError || thing instanceof TimeoutError || thing instanceof DnsError) {
+    const networkError = translateNetworkError(thing);
+
+    // Should note what actual errors are thrown here. Perhaps use error codes here instead.
+    if (isConnectionError(networkError)) {
+      debug(
+        LOG_NAME,
+        "Connection error: " + networkError + " " + networkError.code + " " + networkError.cause,
+        "ANALYSIS",
+      );
       return false;
     }
 
@@ -89,23 +104,41 @@ async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
 }
 
 async function handleUpdate(
-  isWebsiteOnline: boolean,
-  state: MonitorState,
+  isWebsiteAvailable: boolean,
+  websiteState: WebsiteState,
   channelId: string,
   messageId: string,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(isWebsiteOnline, time);
+  const mainPayload = buildMainPayload(isWebsiteAvailable, time);
   await editMessage(channelId, messageId, mainPayload);
 
-  const updatePayload = isWebsiteOnline
-    ? buildWebsiteUpPayload(time)
-    : buildWebsiteDownPayload(time);
+  const formattedDuration = formatTimestamp(
+    findDifference(websiteState.lastAvailabilityChangeTimestamp, time),
+  );
+
+  if (isWebsiteAvailable && !websiteState.hasReturned) {
+    const updatePayload = buildWebsiteReturnPayload(formattedDuration, time);
+    await sendMessage(channelId, updatePayload);
+
+    websiteState.hasReturned = true;
+    websiteState.isAvailable = isWebsiteAvailable;
+    websiteState.lastAvailabilityChangeTimestamp = time.toUTCString();
+    writeJsonFile(WEBSITE_STATE_PATH, websiteState);
+
+    info(LOG_NAME, "Website is finally back!", traceId);
+    return;
+  }
+
+  const updatePayload = isWebsiteAvailable
+    ? buildWebsiteAvailablePayload(formattedDuration, time)
+    : buildWebsiteUnavailablePayload(formattedDuration, time);
   await sendMessage(channelId, updatePayload);
 
-  state["is-website-online"] = isWebsiteOnline;
-  writeJsonFile(MONITOR_STATE_PATH, state);
+  websiteState.isAvailable = isWebsiteAvailable;
+  websiteState.lastAvailabilityChangeTimestamp = time.toUTCString();
+  writeJsonFile(WEBSITE_STATE_PATH, websiteState);
 
-  info(LOG_NAME, `Website went ${isWebsiteOnline ? "up" : "down"}.`, traceId);
+  info(LOG_NAME, `Website ${isWebsiteAvailable ? "is back online" : "went down"}.`, traceId);
 }

@@ -13,7 +13,7 @@
   "main": "bootstrap.js",
   "type": "module",
   "imports": {
-    "#/*.js": {
+    "#root/*.js": {
       "production": "./dist/*.js",
       "development": "./src/*.ts"
     },

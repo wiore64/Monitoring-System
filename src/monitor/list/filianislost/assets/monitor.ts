@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 
 import prettier from "prettier";
 
-import { config } from "#data/filianislost/assets/monitor-config.json" with { type: "json" };
+import config from "#data/filianislost/assets/monitor-config.json" with { type: "json" };
+import state from "#data/filianislost/assets/monitor-state.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { createDirectory, readJsonFile, writeFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -16,12 +17,8 @@ const ASSETS_SNAPSHOTS_PATH = "./data/filianislost/assets/assets/snapshots";
 const ASSET_HISTORY_PATH = "./data/filianislost/assets/asset-history.json";
 const ASSET_HASHES_PATH = "./data/filianislost/assets/asset-hashes.json";
 
-type MonitorState = {
-  "message-id": string;
-};
-
 export type MonitorContext = {
-  "timeout-ms": number;
+  timeoutMs: number;
 };
 
 export type AssetName = "html" | "css" | "js";
@@ -62,13 +59,11 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
-
   const oldAssetHashes = readJsonFile<AssetHashes>(ASSET_HASHES_PATH);
-  const fetchResult = await fetchAssets(context["timeout-ms"]);
+  const fetchResult = await fetchAssets(context.timeoutMs);
 
-  if (state["message-id"].length === 0) {
-    await initializeMonitor(state, fetchResult, config["channel-id"], time, traceId);
+  if (state.messageId.length === 0) {
+    await initializeMonitor(fetchResult, config["channel-id"], time, traceId);
     return context;
   }
 
@@ -82,7 +77,7 @@ export async function run(
     fetchResult,
     comparisonResult.changedAssets,
     config["channel-id"],
-    state["message-id"],
+    state.messageId,
     time,
     traceId,
   );
@@ -183,7 +178,6 @@ async function prettifyContent(assetType: AssetName, content: string): Promise<s
 }
 
 async function initializeMonitor(
-  state: MonitorState,
   fetchResult: AssetFetchResult,
   channelId: string,
   time: Date,
@@ -192,7 +186,7 @@ async function initializeMonitor(
   const payload = buildMainPayload(time);
   const message = await sendMessage(channelId, payload);
 
-  state["message-id"] = message.id;
+  state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
   storeChangedAssets(fetchResult.data, time.toISOString());

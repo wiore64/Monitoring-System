@@ -1,31 +1,15 @@
 import { EmbedBuilder } from "discord.js";
 
-import { readJsonFile } from "#utils/file.js";
+import config from "#data/filianislost/stats/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
-import { type SignalStats } from "./monitor.js";
-
-const PAYLOAD_CONFIG_PATH = "./data/filianislost/stats/payload-config.json";
-
-type PayloadConfig = {
-  main: {
-    color: string;
-    description: string;
-  };
-  update: {
-    color: string;
-    title: string;
-    description: string;
-  };
-};
+import { type SignalInfo, type SignalStats } from "./monitor.js";
 
 export function buildMainPayload(stats: SignalStats, time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).main;
-
   const embed = new EmbedBuilder()
-    .setColor(Number(config.color))
+    .setColor(Number(config.main.color))
     .setDescription(
-      formatContent(config.description, {
+      formatContent(config.main.description, {
         PAINTERS: stats.userCount,
         SIGNALS: stats.signalCount,
         APPROVED_SIGNALS: stats.approvedSignalCount,
@@ -37,17 +21,35 @@ export function buildMainPayload(stats: SignalStats, time: Date): Payload {
   return { embeds: [embed] };
 }
 
-export function buildUpdatePayload(time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).update;
-
+export function buildUpdatePayload(count: number, time: Date): Payload {
   const embed = new EmbedBuilder()
-    .setColor(Number(config.color))
-    .setTitle(config.title)
+    .setColor(Number(config.update.color))
+    .setTitle(config.update.title)
     .setDescription(
-      formatContent(config.description, {
+      formatContent(config.update.description, {
+        COUNT: count,
         TIMESTAMP: time.toUTCString(),
       }),
     )
+    .setTimestamp(time);
+
+  return { embeds: [embed] };
+}
+
+export function buildSignalPayload(signal: SignalInfo, time: Date): Payload {
+  const embed = new EmbedBuilder()
+    .setColor(Number(config.signal.color))
+    .setTitle(config.signal.title)
+    .setDescription(
+      formatContent(config.signal.description, {
+        ID: signal.num_id,
+        NAME: signal.name,
+        LOCATION: signal.location,
+        SUBMITTED_AT: new Date(Number(signal.submitted_at)).toUTCString(),
+        APPROVED_AT: time.toUTCString(),
+      }),
+    )
+    .setImage(signal.image_file)
     .setTimestamp(time);
 
   return { embeds: [embed] };

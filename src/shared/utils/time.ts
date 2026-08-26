@@ -1,4 +1,45 @@
+const MONTH = 30 * 24 * 60 * 60;
+const DAY = 24 * 60 * 60;
+const HOUR = 60 * 60;
+const MINUTE = 60;
+
 export type Timestamp = string | number | Date;
+
+export function formatTimestamp(timestamp: Timestamp): string {
+  let remaining = Math.floor(toDate(timestamp).getTime() / 1000);
+
+  const months = Math.floor(remaining / MONTH);
+  remaining %= MONTH;
+
+  const days = Math.floor(remaining / DAY);
+  remaining %= DAY;
+
+  const hours = Math.floor(remaining / HOUR);
+  remaining %= HOUR;
+
+  const minutes = Math.floor(remaining / MINUTE);
+  const seconds = remaining % MINUTE;
+
+  const parts: string[] = [];
+
+  if (months) {
+    parts.push(`${months}mo`);
+  }
+  if (days) {
+    parts.push(`${days}d`);
+  }
+  if (hours) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes) {
+    parts.push(`${minutes}m`);
+  }
+  if (seconds || parts.length === 0) {
+    parts.push(`${seconds}s`);
+  }
+
+  return parts.join(" ");
+}
 
 export function isInTimeRange(start: Timestamp, end: Timestamp, now: Timestamp): boolean {
   const startDate = toDate(start);
@@ -29,7 +70,7 @@ export function isInDayOfWeekAndTimeRange(
   return nowTime >= startTime && nowTime <= endTime && isInTimeRange(start, end, now);
 }
 
-export function findDifference(now: Timestamp, before: Timestamp): number {
+export function findDifference(before: Timestamp, now: Timestamp): number {
   const nowDate = toDate(now);
   const beforeDate = toDate(before);
 

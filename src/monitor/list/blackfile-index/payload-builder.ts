@@ -1,55 +1,14 @@
 import { EmbedBuilder } from "discord.js";
 
-import { readJsonFile } from "#utils/file.js";
+import config from "#data/blackfile-index/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
-const PAYLOAD_CONFIG_PATH = "./data/blackfile-index/payload-config.json";
-
-type PayloadConfig = {
-  main: {
-    color: string;
-    descriptionUp: string;
-    descriptionDown: string;
-  };
-  websiteUp: {
-    color: string;
-    title: string;
-    description: string;
-  };
-  websiteDown: {
-    color: string;
-    title: string;
-    description: string;
-  };
-};
-
-export function buildMainPayload(isWebsiteOnline: boolean, time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).main;
-
+export function buildMainPayload(isWebsiteAvailable: boolean, time: Date): Payload {
   const embed = new EmbedBuilder()
-    .setColor(Number(config.color))
+    .setColor(Number(config.main.color))
     .setDescription(
-      isWebsiteOnline
-        ? formatContent(config.descriptionUp, {
-            TIMESTAMP: time.toUTCString(),
-          })
-        : formatContent(config.descriptionDown, {
-            TIMESTAMP: time.toUTCString(),
-          }),
-    )
-    .setTimestamp(time);
-
-  return { embeds: [embed] };
-}
-
-export function buildWebsiteUpPayload(time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).websiteUp;
-
-  const embed = new EmbedBuilder()
-    .setColor(Number(config.color))
-    .setTitle(config.title)
-    .setDescription(
-      formatContent(config.description, {
+      formatContent(config.main.description, {
+        STATUS: isWebsiteAvailable ? "Available" : "Unavailable",
         TIMESTAMP: time.toUTCString(),
       }),
     )
@@ -58,14 +17,43 @@ export function buildWebsiteUpPayload(time: Date): Payload {
   return { embeds: [embed] };
 }
 
-export function buildWebsiteDownPayload(time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH).websiteDown;
-
+export function buildWebsiteReturnPayload(duration: string, time: Date): Payload {
   const embed = new EmbedBuilder()
-    .setColor(Number(config.color))
-    .setTitle(config.title)
+    .setColor(Number(config.update.return.color))
+    .setTitle(config.update.return.title)
     .setDescription(
-      formatContent(config.description, {
+      formatContent(config.update.return.description, {
+        DURATION: duration,
+        TIMESTAMP: time.toUTCString(),
+      }),
+    )
+    .setTimestamp(time);
+
+  return { embeds: [embed] };
+}
+
+export function buildWebsiteAvailablePayload(duration: string, time: Date): Payload {
+  const embed = new EmbedBuilder()
+    .setColor(Number(config.update.available.color))
+    .setTitle(config.update.available.title)
+    .setDescription(
+      formatContent(config.update.available.description, {
+        DURATION: duration,
+        TIMESTAMP: time.toUTCString(),
+      }),
+    )
+    .setTimestamp(time);
+
+  return { embeds: [embed] };
+}
+
+export function buildWebsiteUnavailablePayload(duration: string, time: Date): Payload {
+  const embed = new EmbedBuilder()
+    .setColor(Number(config.update.unavailable.color))
+    .setTitle(config.update.unavailable.title)
+    .setDescription(
+      formatContent(config.update.unavailable.description, {
+        DURATION: duration,
         TIMESTAMP: time.toUTCString(),
       }),
     )

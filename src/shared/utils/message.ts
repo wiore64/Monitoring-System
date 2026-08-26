@@ -6,7 +6,7 @@ import {
   type MessageCreateOptions,
 } from "discord.js";
 
-import { client } from "#/bootstrap.js";
+import { client } from "#root/bootstrap.js";
 import { toError, translateNetworkError } from "#shared/error.js";
 
 export type Payload = {
