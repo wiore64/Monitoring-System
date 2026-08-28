@@ -8,11 +8,11 @@ import {
 import {
   type MonitorContext as FilianislostAssetsContext,
   run as runFilianislostAssets,
-} from "./list/filianislost/assets/monitor.js";
+} from "./list/filianislost/website/assets/monitor.js";
 import {
   type MonitorContext as FilianislostStatsContext,
   run as runFilianislostStats,
-} from "./list/filianislost/stats/monitor.js";
+} from "./list/filianislost/website/stats/monitor.js";
 import {
   type MonitorContext as TwitterWallContext,
   run as runTwitterWall,

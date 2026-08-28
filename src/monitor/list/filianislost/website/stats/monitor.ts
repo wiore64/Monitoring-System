@@ -1,15 +1,16 @@
-import config from "#data/filianislost/stats/monitor-config.json" with { type: "json" };
-import state from "#data/filianislost/stats/monitor-state.json" with { type: "json" };
+import config from "#data/filianislost/website/stats/monitor-config.json" with { type: "json" };
+import state from "#data/filianislost/website/stats/monitor-state.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 
 import { buildMainPayload, buildSignalPayload, buildUpdatePayload } from "./payload-builder.js";
+import { updateAvailabilityFlag } from "../availability.js";
 
 const LOG_NAME = "filianislost/stats";
-const MONITOR_STATE_PATH = "./data/filianislost/stats/monitor-state.json";
-const STATS_INFO_PATH = "./data/filianislost/stats/website-stats.json";
+const MONITOR_STATE_PATH = "./data/filianislost/website/stats/monitor-state.json";
+const STATS_INFO_PATH = "./data/filianislost/website/stats/website-stats.json";
 
 export type MonitorContext = {
   timeoutMs: number;
@@ -47,7 +48,7 @@ export async function run(
   traceId: string,
 ): Promise<MonitorContext> {
   const oldStats = readJsonFile<SignalStats>(STATS_INFO_PATH);
-  const newStats = await fetchSignalStats(context.timeoutMs);
+  const newStats = await fetchSignalStats(context.timeoutMs, time, traceId);
 
   if (state.messageId.length === 0) {
     await initializeMonitor(newStats, config["channel-id"], time, traceId);
@@ -73,18 +74,25 @@ export async function run(
   return context;
 }
 
-async function fetchSignalStats(timeoutMs: number): Promise<SignalStats> {
+async function fetchSignalStats(
+  timeoutMs: number,
+  time: Date,
+  traceId: string,
+): Promise<SignalStats> {
   const response = await fetch("https://signal.filianislost.com/stats", {
     signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!response.ok) {
+    await updateAvailabilityFlag(false, time, traceId);
     throw new HttpError(
       "Failed to fetch signal stats.",
       response.statusText,
       `${response.status} ${response.statusText}`,
     );
   }
+
+  await updateAvailabilityFlag(true, time, traceId);
 
   const responseJson = (await response.json()) as WebsiteResponse;
 

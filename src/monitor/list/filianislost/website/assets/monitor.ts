@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 
 import prettier from "prettier";
 
-import config from "#data/filianislost/assets/monitor-config.json" with { type: "json" };
-import state from "#data/filianislost/assets/monitor-state.json" with { type: "json" };
+import config from "#data/filianislost/website/assets/monitor-config.json" with { type: "json" };
+import state from "#data/filianislost/website/assets/monitor-state.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { createDirectory, readJsonFile, writeFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
@@ -12,10 +12,10 @@ import { editMessage, sendMessage } from "#utils/message.js";
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "filianislost/assets";
-const MONITOR_STATE_PATH = "./data/filianislost/assets/monitor-state.json";
-const ASSETS_SNAPSHOTS_PATH = "./data/filianislost/assets/assets/snapshots";
-const ASSET_HISTORY_PATH = "./data/filianislost/assets/asset-history.json";
-const ASSET_HASHES_PATH = "./data/filianislost/assets/asset-hashes.json";
+const MONITOR_STATE_PATH = "./data/filianislost/website/assets/monitor-state.json";
+const ASSETS_SNAPSHOTS_PATH = "./data/filianislost/website/assets/assets/snapshots";
+const ASSET_HISTORY_PATH = "./data/filianislost/website/assets/asset-history.json";
+const ASSET_HASHES_PATH = "./data/filianislost/website/assets/asset-hashes.json";
 
 export type MonitorContext = {
   timeoutMs: number;

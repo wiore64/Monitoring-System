@@ -1,6 +1,6 @@
 import { EmbedBuilder } from "discord.js";
 
-import config from "#data/filianislost/stats/payload-config.json" with { type: "json" };
+import config from "#data/filianislost/website/stats/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
 import { type SignalInfo, type SignalStats } from "./monitor.js";

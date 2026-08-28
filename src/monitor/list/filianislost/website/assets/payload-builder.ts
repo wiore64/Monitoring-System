@@ -5,7 +5,7 @@ import { formatContent, type Payload } from "#utils/message.js";
 
 import { type AssetName } from "./monitor.js";
 
-const PAYLOAD_CONFIG_PATH = "./data/filianislost/assets/payload-config.json";
+const PAYLOAD_CONFIG_PATH = "./data/filianislost/website/assets/payload-config.json";
 
 type PayloadConfig = {
   main: {
