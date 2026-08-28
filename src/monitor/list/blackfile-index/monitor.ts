@@ -1,6 +1,6 @@
 import config from "#data/blackfile-index/monitor-config.json" with { type: "json" };
 import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
-import { getCode } from "#shared/error.js";
+import { getCause, getCode, translateNetworkError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -87,13 +87,15 @@ async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
       throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
+    const networkError = translateNetworkError(thing);
+
     // Should note what actual errors are thrown here. Perhaps use error codes here instead.
-    if (getCode(thing) === "ENOTFOUND") {
+    if (getCode(networkError) === "ENOTFOUND") {
       return false;
     }
 
-    debug("T", `Error code: ${getCode(thing)}`, "T");
-    throw thing;
+    debug("T", `Error code: ${getCode(getCause(networkError) ?? networkError)}`, "T");
+    throw networkError;
   }
 }
 
