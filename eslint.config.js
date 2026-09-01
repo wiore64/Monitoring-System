@@ -17,7 +17,6 @@ export default [
     },
 
     rules: {
-      eqeqeq: ["error", "always"],
       curly: ["error", "all"],
       "no-console": "off",
 
