@@ -40,7 +40,7 @@ export async function run(
   traceId: string,
 ): Promise<MonitorContext> {
   const oldWebsiteState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
-  const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs, traceId);
+  const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs);
 
   if (state.messageId.length === 0 || !oldWebsiteState) {
     await initializeMonitor(isWebsiteAvailable, config["channel-id"], traceId);
@@ -70,7 +70,7 @@ export async function run(
   return context;
 }
 
-async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Promise<boolean> {
+async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
   try {
     const response = await fetch("https://filianislost.com", {
       signal: AbortSignal.timeout(timeoutMs),
@@ -78,7 +78,7 @@ async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Pro
     return response.ok;
   } catch (thing: unknown) {
     if (!(thing instanceof Error)) {
-      throw new TypeError(`[${traceId}] Non-error thrown: ${thing}`, { cause: thing });
+      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
     }
 
     const networkError = translateNetworkError(thing);
@@ -144,12 +144,12 @@ async function reportUpdate(
 
 function persistWebsiteStateUpdate(
   isWebsiteAvailable: boolean,
-  oldState: WebsiteState,
+  oldWebsiteState: WebsiteState,
   time: Date,
 ): void {
   writeJsonFile(WEBSITE_STATE_PATH, {
     hasReturned: isWebsiteAvailable,
-    isAvailable: oldState.hasReturned ? true : isWebsiteAvailable,
+    isAvailable: oldWebsiteState.hasReturned ? true : isWebsiteAvailable,
     lastAvailabilityChangeTimestamp: time.toISOString(),
   });
 }

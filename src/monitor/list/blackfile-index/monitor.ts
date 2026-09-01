@@ -2,7 +2,7 @@ import config from "#data/blackfile-index/monitor-config.json" with { type: "jso
 import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
 import { getCause, getCode, translateNetworkError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
-import { debug, info } from "#utils/logger.js";
+import { debug, info, warn } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 import { findDifference, formatTimestamp } from "#utils/time.js";
 
@@ -16,6 +16,13 @@ import {
 const LOG_NAME = "blackfile-index";
 const MONITOR_STATE_PATH = "./data/blackfile-index/monitor-state.json";
 const WEBSITE_STATE_PATH = "./data/blackfile-index/website-state.json";
+
+const INITIAL_LAST_AVAILABILITY_CHANGE_TIME = new Date("2026-05-07T03:40:00Z");
+const INITIAL_WEBSITE_STATE: WebsiteState = {
+  hasReturned: false,
+  isAvailable: false,
+  lastAvailabilityChangeTimestamp: INITIAL_LAST_AVAILABILITY_CHANGE_TIME.toISOString(),
+};
 
 export type MonitorContext = {
   timeoutMs: number;
@@ -35,8 +42,8 @@ export async function run(
   const oldWebsiteState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
   const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs, traceId);
 
-  if (state.messageId.length === 0) {
-    await initializeMonitor(isWebsiteAvailable, oldWebsiteState, config["channel-id"], traceId);
+  if (state.messageId.length === 0 || !oldWebsiteState) {
+    await initializeMonitor(isWebsiteAvailable, config["channel-id"], traceId);
     return context;
   }
 
@@ -46,11 +53,11 @@ export async function run(
 
   debug(
     LOG_NAME,
-    `Website status changed to ${isWebsiteAvailable}. Old state: ${JSON.stringify(oldWebsiteState)}`,
+    `Website availability changed: ${isWebsiteAvailable}. Old state: ${JSON.stringify(oldWebsiteState)}`,
     traceId,
   );
 
-  await handleUpdate(
+  await reportUpdate(
     isWebsiteAvailable,
     oldWebsiteState,
     config["channel-id"],
@@ -58,28 +65,9 @@ export async function run(
     time,
     traceId,
   );
+  persistWebsiteStateUpdate(isWebsiteAvailable, oldWebsiteState, time);
 
   return context;
-}
-
-async function initializeMonitor(
-  isWebsiteAvailable: boolean,
-  websiteState: WebsiteState,
-  channelId: string,
-  traceId: string,
-): Promise<void> {
-  const payload = buildMainPayload(isWebsiteAvailable, new Date("2026-05-07T03:40:00Z"));
-  const message = await sendMessage(channelId, payload);
-
-  state.messageId = message.id;
-  writeJsonFile(MONITOR_STATE_PATH, state);
-
-  websiteState.hasReturned = isWebsiteAvailable;
-  websiteState.isAvailable = isWebsiteAvailable;
-  websiteState.lastAvailabilityChangeTimestamp = "2026-05-07T03:40:00Z";
-  writeJsonFile(WEBSITE_STATE_PATH, websiteState);
-
-  info(LOG_NAME, "Initialized.", traceId);
 }
 
 async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Promise<boolean> {
@@ -90,14 +78,18 @@ async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Pro
     return response.ok;
   } catch (thing: unknown) {
     if (!(thing instanceof Error)) {
-      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
+      throw new TypeError(`[${traceId}] Non-error thrown: ${thing}`, { cause: thing });
     }
 
     const networkError = translateNetworkError(thing);
 
     // Should note what actual errors are thrown here. Perhaps use error codes here instead.
     if (getCode(networkError) !== "ENOTFOUND") {
-      debug(LOG_NAME, `Error code: ${getCode(getCause(networkError) ?? networkError)}`, traceId);
+      warn(
+        LOG_NAME,
+        `Received error code: ${getCode(getCause(networkError) ?? networkError)}`,
+        traceId,
+      );
       throw networkError;
     }
 
@@ -105,9 +97,25 @@ async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Pro
   }
 }
 
-async function handleUpdate(
+async function initializeMonitor(
   isWebsiteAvailable: boolean,
-  websiteState: WebsiteState,
+  channelId: string,
+  traceId: string,
+): Promise<void> {
+  const payload = buildMainPayload(isWebsiteAvailable, INITIAL_LAST_AVAILABILITY_CHANGE_TIME);
+  const message = await sendMessage(channelId, payload);
+
+  state.messageId = message.id;
+  writeJsonFile(MONITOR_STATE_PATH, state);
+
+  writeJsonFile(WEBSITE_STATE_PATH, INITIAL_WEBSITE_STATE);
+
+  info(LOG_NAME, "Initialized.", traceId);
+}
+
+async function reportUpdate(
+  isWebsiteAvailable: boolean,
+  oldWebsiteState: WebsiteState,
   channelId: string,
   messageId: string,
   time: Date,
@@ -116,31 +124,38 @@ async function handleUpdate(
   const mainPayload = buildMainPayload(isWebsiteAvailable, time);
   await editMessage(channelId, messageId, mainPayload);
 
-  const formattedDuration = formatTimestamp(
-    findDifference(websiteState.lastAvailabilityChangeTimestamp, time),
+  const duration = formatTimestamp(
+    findDifference(oldWebsiteState.lastAvailabilityChangeTimestamp, time),
   );
 
-  if (isWebsiteAvailable && !websiteState.hasReturned) {
-    const updatePayload = buildWebsiteReturnPayload(formattedDuration, time);
+  if (isWebsiteAvailable && !oldWebsiteState.hasReturned) {
+    const updatePayload = buildWebsiteReturnPayload(duration, time);
     await sendMessage(channelId, updatePayload);
 
-    websiteState.hasReturned = true;
-    websiteState.isAvailable = isWebsiteAvailable;
-    websiteState.lastAvailabilityChangeTimestamp = time.toUTCString();
-    writeJsonFile(WEBSITE_STATE_PATH, websiteState);
-
-    info(LOG_NAME, `Website is finally back after ${formattedDuration}!`, traceId);
+    info(LOG_NAME, `Website is finally back after ${duration}!`, traceId);
     return;
   }
 
   const updatePayload = isWebsiteAvailable
-    ? buildWebsiteAvailablePayload(formattedDuration, time)
-    : buildWebsiteUnavailablePayload(formattedDuration, time);
+    ? buildWebsiteAvailablePayload(duration, time)
+    : buildWebsiteUnavailablePayload(duration, time);
   await sendMessage(channelId, updatePayload);
 
-  websiteState.isAvailable = isWebsiteAvailable;
-  websiteState.lastAvailabilityChangeTimestamp = time.toUTCString();
-  writeJsonFile(WEBSITE_STATE_PATH, websiteState);
+  info(
+    LOG_NAME,
+    `Website ${isWebsiteAvailable ? "is back online" : "went down"} after ${duration}.`,
+    traceId,
+  );
+}
 
-  info(LOG_NAME, `Website ${isWebsiteAvailable ? "is back online" : "went down"}.`, traceId);
+function persistWebsiteStateUpdate(
+  isWebsiteAvailable: boolean,
+  oldWebsiteState: WebsiteState,
+  time: Date,
+): void {
+  writeJsonFile(WEBSITE_STATE_PATH, {
+    hasReturned: isWebsiteAvailable,
+    isAvailable: oldWebsiteState.hasReturned ? true : isWebsiteAvailable,
+    lastAvailabilityChangeTimestamp: time.toISOString(),
+  });
 }
