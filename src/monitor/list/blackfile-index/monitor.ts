@@ -33,7 +33,7 @@ export async function run(
   traceId: string,
 ): Promise<MonitorContext> {
   const oldWebsiteState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
-  const isWebsiteAvailable = await checkWebsiteStatus(context.timeoutMs);
+  const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs, traceId);
 
   if (state.messageId.length === 0) {
     await initializeMonitor(isWebsiteAvailable, oldWebsiteState, config["channel-id"], traceId);
@@ -43,6 +43,12 @@ export async function run(
   if (isWebsiteAvailable === oldWebsiteState.isAvailable) {
     return context;
   }
+
+  debug(
+    LOG_NAME,
+    `Website status changed to ${isWebsiteAvailable}. Old state: ${JSON.stringify(oldWebsiteState)}`,
+    traceId,
+  );
 
   await handleUpdate(
     isWebsiteAvailable,
@@ -76,7 +82,7 @@ async function initializeMonitor(
   info(LOG_NAME, "Initialized.", traceId);
 }
 
-async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
+async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Promise<boolean> {
   try {
     const response = await fetch("https://blackfile-index.org", {
       signal: AbortSignal.timeout(timeoutMs),
@@ -90,12 +96,12 @@ async function checkWebsiteStatus(timeoutMs: number): Promise<boolean> {
     const networkError = translateNetworkError(thing);
 
     // Should note what actual errors are thrown here. Perhaps use error codes here instead.
-    if (getCode(networkError) === "ENOTFOUND") {
-      return false;
+    if (getCode(networkError) !== "ENOTFOUND") {
+      debug(LOG_NAME, `Error code: ${getCode(getCause(networkError) ?? networkError)}`, traceId);
+      throw networkError;
     }
 
-    debug("T", `Error code: ${getCode(getCause(networkError) ?? networkError)}`, "T");
-    throw networkError;
+    return false;
   }
 }
 
@@ -123,7 +129,7 @@ async function handleUpdate(
     websiteState.lastAvailabilityChangeTimestamp = time.toUTCString();
     writeJsonFile(WEBSITE_STATE_PATH, websiteState);
 
-    info(LOG_NAME, "Website is finally back!", traceId);
+    info(LOG_NAME, `Website is finally back after ${formattedDuration}!`, traceId);
     return;
   }
 
