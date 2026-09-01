@@ -45,18 +45,19 @@ function log(level: LogLevel, origin: string, message: string, traceId: string):
       break;
     case "info":
       console.info(record);
+      saveRecord(path, record);
       break;
     case "warn":
       console.warn(record);
+      saveRecord(path, record);
       break;
     case "severe":
       console.error(record);
+      saveRecord(path, record);
       break;
     default:
       throw new TypeError(`Unknown log level '${level}' for the log record: ${record}`);
   }
-
-  saveRecord(path, record);
 }
 
 function saveRecord(path: string, record: string): void {
