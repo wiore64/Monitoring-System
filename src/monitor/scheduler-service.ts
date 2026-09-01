@@ -31,17 +31,7 @@ function initiateMonitor(monitorType: MonitorType): void {
       );
       break;
 
-    //     case MonitorType.FilianislostAssets:
-    //       startMonitorInterval(
-    //         monitor.type,
-    //         {
-    //           "timeout-ms": monitor.config.initial.timeout,
-    //         },
-    //         monitor.config.initial.interval,
-    //       );
-    //       break;
-
-    case MonitorType.FilianislostStats:
+    case MonitorType.FilianislostWebsite:
       startMonitorInterval(
         monitorType,
         {

@@ -6,13 +6,9 @@ import {
   run as runBlackfileIndex,
 } from "./list/blackfile-index/monitor.js";
 import {
-  type MonitorContext as FilianislostAssetsContext,
-  run as runFilianislostAssets,
-} from "./list/filianislost/website/assets/monitor.js";
-import {
-  type MonitorContext as FilianislostStatsContext,
-  run as runFilianislostStats,
-} from "./list/filianislost/website/stats/monitor.js";
+  type MonitorContext as FilianislostContext,
+  run as runFilianislost,
+} from "./list/filianislost/website/monitor.js";
 import {
   type MonitorContext as TwitterWallContext,
   run as runTwitterWall,
@@ -42,8 +38,7 @@ const LOG_NAME = "Monitor Service";
 
 export const MonitorType = {
   BlackfileIndex: "blackfile-index",
-  FilianislostAssets: "filianislost-assets",
-  FilianislostStats: "filianislost-stats",
+  FilianislostWebsite: "filianislost/website",
   MinecraftInfo: "minecraft-info",
   MinecraftState: "minecraft-state",
   TwitterFilian: "twitter-filian",
@@ -56,8 +51,7 @@ export type MonitorType = (typeof MonitorType)[keyof typeof MonitorType];
 
 type MonitorContext = {
   [MonitorType.BlackfileIndex]: BlackfileIndexContext;
-  [MonitorType.FilianislostAssets]: FilianislostAssetsContext;
-  [MonitorType.FilianislostStats]: FilianislostStatsContext;
+  [MonitorType.FilianislostWebsite]: FilianislostContext;
   [MonitorType.MinecraftInfo]: MinecraftInfoContext;
   [MonitorType.MinecraftState]: MinecraftStateContext;
   [MonitorType.TwitterFilian]: TwitterFilianContext;
@@ -76,8 +70,7 @@ type ServiceResult = { success: true } | { success: false; reason: string };
 
 export const MONITOR_PATHS: Record<MonitorType, string> = {
   [MonitorType.BlackfileIndex]: "./list/blackfile-index/monitor.js",
-  [MonitorType.FilianislostAssets]: "./list/filianislost/assets/monitor.js",
-  [MonitorType.FilianislostStats]: "./list/filianislost/stats/monitor.js",
+  [MonitorType.FilianislostWebsite]: "./list/filianislost/monitor.js",
   [MonitorType.MinecraftInfo]: "./list/minecraft/info/monitor.js",
   [MonitorType.MinecraftState]: "./list/minecraft/state/monitor.js",
   [MonitorType.TwitterFilian]: "./list/twitter/filian/monitor.js",
@@ -88,8 +81,7 @@ export const MONITOR_PATHS: Record<MonitorType, string> = {
 
 const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.BlackfileIndex]: runBlackfileIndex,
-  [MonitorType.FilianislostAssets]: runFilianislostAssets,
-  [MonitorType.FilianislostStats]: runFilianislostStats,
+  [MonitorType.FilianislostWebsite]: runFilianislost,
   [MonitorType.MinecraftInfo]: runMinecraftInfo,
   [MonitorType.MinecraftState]: runMinecraftState,
   [MonitorType.TwitterFilian]: runTwitterFilian,
