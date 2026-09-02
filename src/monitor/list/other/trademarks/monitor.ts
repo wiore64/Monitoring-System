@@ -1,6 +1,6 @@
 import config from "#data/other/trademarks/monitor-config.json" with { type: "json" };
 import state from "#data/other/trademarks/monitor-state.json" with { type: "json" };
-import { HttpError } from "#shared/error.js";
+import { HttpError, translateNetworkError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { info } from "#utils/logger.js";
 import { sendMessage } from "#utils/message.js";
@@ -10,6 +10,13 @@ import { buildUpdatePayload } from "./payload-builder.js";
 const LOG_NAME = "other/trademarks";
 const MONITOR_STATE_PATH = "./data/other/trademarks/monitor-state.json";
 const TRADEMARKS_INFO_PATH = "./data/other/trademarks/trademarks-info.json";
+
+const TRADEMARK_FILIAN_URL =
+  "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557803";
+const TRADEMARK_VSOCCER_URL =
+  "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557814";
+const TRADEMARK_VTUBER_AWARDS_URL =
+  "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99750600";
 
 export type MonitorContext = {
   timeoutMs: number;
@@ -68,18 +75,9 @@ export async function run(
 
 async function fetchTrademarksInfo(timeoutMs: number): Promise<TrademarksInfo> {
   const [filianTrademark, vsoccerTrademark, vtuberAwardsTrademark] = await Promise.all([
-    fetchTrademarkInfo(
-      "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557803",
-      timeoutMs,
-    ),
-    fetchTrademarkInfo(
-      "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557814",
-      timeoutMs,
-    ),
-    fetchTrademarkInfo(
-      "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99750600",
-      timeoutMs,
-    ),
+    fetchTrademarkInfo(TRADEMARK_FILIAN_URL, timeoutMs),
+    fetchTrademarkInfo(TRADEMARK_VSOCCER_URL, timeoutMs),
+    fetchTrademarkInfo(TRADEMARK_VTUBER_AWARDS_URL, timeoutMs),
   ]);
 
   return {
@@ -90,7 +88,17 @@ async function fetchTrademarksInfo(timeoutMs: number): Promise<TrademarksInfo> {
 }
 
 async function fetchTrademarkInfo(url: string, timeoutMs: number): Promise<TrademarkInfo> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  let response;
+
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  } catch (thing: unknown) {
+    if (!(thing instanceof Error)) {
+      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
+    }
+
+    throw translateNetworkError(thing);
+  }
 
   if (!response.ok) {
     throw new HttpError(
@@ -100,7 +108,6 @@ async function fetchTrademarkInfo(url: string, timeoutMs: number): Promise<Trade
     );
   }
 
-  // must be
   const data = (await response.json()) as TrademarkResponseData;
 
   return {
