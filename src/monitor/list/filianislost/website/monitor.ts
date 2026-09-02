@@ -17,19 +17,15 @@ const LOG_NAME = "filianislost/website";
 const MONITOR_STATE_PATH = "./data/filianislost/website/monitor-state.json";
 const WEBSITE_STATE_PATH = "./data/filianislost/website/website-state.json";
 
+const WEBSITE_LINK = "https://filianislost.com/";
 const INITIAL_LAST_AVAILABILITY_CHANGE_TIME = new Date("2026-08-27T10:54:00Z");
-const INITIAL_WEBSITE_STATE = {
-  hasReturned: false,
-  isAvailable: false,
-  lastAvailabilityChangeTimestamp: INITIAL_LAST_AVAILABILITY_CHANGE_TIME.toISOString(),
-};
 
 export type MonitorContext = {
   timeoutMs: number;
 };
 
 type WebsiteState = {
-  hasReturned: boolean;
+  hasEverReturned: boolean;
   isAvailable: boolean;
   lastAvailabilityChangeTimestamp: string;
 };
@@ -43,7 +39,7 @@ export async function run(
   const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs);
 
   if (state.messageId.length === 0 || !oldWebsiteState) {
-    await initializeMonitor(isWebsiteAvailable, config["channel-id"], traceId);
+    await initializeMonitor(isWebsiteAvailable, config["channel-id"], time, traceId);
     return context;
   }
 
@@ -65,14 +61,14 @@ export async function run(
     time,
     traceId,
   );
-  persistWebsiteStateUpdate(isWebsiteAvailable, oldWebsiteState, time);
+  persistWebsiteStateUpdate(oldWebsiteState.hasEverReturned, isWebsiteAvailable, time);
 
   return context;
 }
 
 async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
   try {
-    const response = await fetch("https://filianislost.com", {
+    const response = await fetch(WEBSITE_LINK, {
       signal: AbortSignal.timeout(timeoutMs),
     });
     return response.ok;
@@ -94,6 +90,7 @@ async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
 async function initializeMonitor(
   isWebsiteAvailable: boolean,
   channelId: string,
+  time: Date,
   traceId: string,
 ): Promise<void> {
   const payload = buildMainPayload(isWebsiteAvailable, INITIAL_LAST_AVAILABILITY_CHANGE_TIME);
@@ -102,7 +99,7 @@ async function initializeMonitor(
   state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  writeJsonFile(WEBSITE_STATE_PATH, INITIAL_WEBSITE_STATE);
+  persistWebsiteStateUpdate(isWebsiteAvailable, isWebsiteAvailable, time);
 
   info(LOG_NAME, `Initialized.`, traceId);
 }
@@ -122,7 +119,7 @@ async function reportUpdate(
     findDifference(oldWebsiteState.lastAvailabilityChangeTimestamp, time),
   );
 
-  if (isWebsiteAvailable && !oldWebsiteState.hasReturned) {
+  if (isWebsiteAvailable && !oldWebsiteState.hasEverReturned) {
     const updatePayload = buildWebsiteReturnPayload(duration, time);
     await sendMessage(channelId, updatePayload);
 
@@ -143,13 +140,13 @@ async function reportUpdate(
 }
 
 function persistWebsiteStateUpdate(
+  hasEverReturned: boolean,
   isWebsiteAvailable: boolean,
-  oldWebsiteState: WebsiteState,
   time: Date,
 ): void {
   writeJsonFile(WEBSITE_STATE_PATH, {
-    hasReturned: isWebsiteAvailable,
-    isAvailable: oldWebsiteState.hasReturned ? true : isWebsiteAvailable,
+    hasReturned: hasEverReturned || isWebsiteAvailable,
+    isAvailable: isWebsiteAvailable,
     lastAvailabilityChangeTimestamp: time.toISOString(),
   });
 }
