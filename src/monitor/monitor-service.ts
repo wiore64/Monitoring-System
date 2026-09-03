@@ -1,4 +1,4 @@
-import { DnsError, getStack, toError } from "#shared/error.js";
+import { DnsError, getStack, TimeoutError, toError } from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import {
@@ -179,7 +179,10 @@ function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: s
     info(LOG_NAME, "Network outage resolved. Future DNS errors are resumed.", traceId);
   }
 
-  const reason = error.stack ? `${error.message}\n${getStack(error)}` : error.message;
-
-  warn(LOG_NAME, `Failed to run ${monitorType}: ${reason}`, traceId);
+  if (error instanceof TimeoutError) {
+    severe(LOG_NAME, `Failed to run ${monitorType}: Timeout.`, traceId);
+  } else {
+    const reason = error.stack ? `${error.message}\n${getStack(error)}` : error.message;
+    warn(LOG_NAME, `Failed to run ${monitorType}: ${reason}`, traceId);
+  }
 }
