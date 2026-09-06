@@ -79,13 +79,7 @@ async function checkWebsiteAvailability(timeoutMs: number, traceId: string): Pro
 
     const networkError = translateNetworkError(thing);
 
-    // Should note what actual errors are thrown here. Perhaps use error codes here instead.
     if (getCode(networkError) !== "ENOTFOUND") {
-      warn(
-        LOG_NAME,
-        `Received error code: ${getCode(getCause(networkError) ?? networkError)}`,
-        traceId,
-      );
       throw networkError;
     }
 

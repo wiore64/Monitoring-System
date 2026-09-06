@@ -69,7 +69,7 @@ export function translateNetworkError(error: Error): HttpError | DnsError | Time
   const errorCode = getCode(error);
 
   if (DNS_ERROR_CODES.has(errorCode)) {
-    return new DnsError(error.message, errorCode, getStack(error), error);
+    return new DnsError(error.message, errorCode, error.stack ?? "", error);
   }
 
   if (error.name === "TimeoutError") {
@@ -80,15 +80,11 @@ export function translateNetworkError(error: Error): HttpError | DnsError | Time
 
   return cause
     ? translateNetworkError(cause)
-    : new HttpError(error.message, errorCode, getStack(error), error);
+    : new HttpError(error.message, errorCode, error.stack ?? "", error);
 }
 
 export function getCause(error: Error): Error | undefined {
   return toError(error.cause);
-}
-
-export function getStack(error: Error): string {
-  return error.stack ?? "";
 }
 
 export function getCode(error: Error): string {
