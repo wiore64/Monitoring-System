@@ -41,7 +41,7 @@ function log(level: LogLevel, origin: string, message: string, traceId: string):
 
   switch (level) {
     case "debug":
-      console.debug(record);
+      saveRecord(path, record);
       break;
     case "info":
       console.info(record);
