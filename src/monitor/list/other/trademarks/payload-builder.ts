@@ -3,10 +3,10 @@ import { EmbedBuilder } from "discord.js";
 import config from "#data/other/trademarks/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
-import { type TrademarkInfo, type TrademarksInfo } from "./monitor.js";
+import { type TrademarkInfo, type TrademarkType } from "./monitor.js";
 
 export function buildUpdatePayload(
-  trademarkName: keyof TrademarksInfo,
+  trademarkName: TrademarkType,
   trademarkInfo: TrademarkInfo,
   time: Date,
 ): Payload {
@@ -18,7 +18,7 @@ export function buildUpdatePayload(
         NAME: trademarkName,
         STATUS: trademarkInfo.status,
         DESCRIPTION: trademarkInfo.description,
-        TIMESTAMP: time.toUTCString(),
+        DATE: trademarkInfo.date,
       }),
     )
     .setTimestamp(time);
