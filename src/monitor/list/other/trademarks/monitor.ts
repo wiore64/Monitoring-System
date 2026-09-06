@@ -1,9 +1,9 @@
 import config from "#data/other/trademarks/monitor-config.json" with { type: "json" };
 import state from "#data/other/trademarks/monitor-state.json" with { type: "json" };
-import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { sendMessage } from "#utils/message.js";
+import { fetchUrl } from "#utils/network.js";
 
 import { buildUpdatePayload } from "./payload-builder.js";
 
@@ -34,20 +34,24 @@ type TrademarkResponseData = {
   }[];
 };
 
-export type TrademarkType = "Filian" | "Vsoccer" | "Vtuber Awards";
-
 export type TrademarkInfo = {
   status: string;
   description: string;
   date: string;
 };
 
-type TrademarksInfo = Record<TrademarkType, TrademarkInfo>;
+type TrademarksInfo = {
+  Filian: TrademarkInfo;
+  Vsoccer: TrademarkInfo;
+  "Vtuber Awards": TrademarkInfo;
+};
+
+export type TrademarkType = keyof TrademarksInfo;
 
 type ChangedTrademarksInfo = {
   [T in TrademarkType]?: {
-    old: TrademarkInfo;
     new: TrademarkInfo;
+    old: TrademarkInfo;
   };
 };
 
@@ -81,7 +85,7 @@ export async function run(
     traceId,
   );
 
-  await reportChanges(result.changedTrademarksInfo, config["channel-id"], time, traceId);
+  await reportChanges(result.changedTrademarksInfo, config["channel-id"], traceId);
   writeJsonFile(TRADEMARKS_INFO_PATH, newTrademarksInfo);
 
   return context;
@@ -102,19 +106,16 @@ async function fetchTrademarksInfo(timeoutMs: number): Promise<TrademarksInfo> {
 }
 
 async function fetchTrademarkInfo(url: string, timeoutMs: number): Promise<TrademarkInfo> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  const response = await fetchUrl(url, timeoutMs);
 
-  if (!response.ok) {
-    throw new HttpError(
-      "Failed to fetch trademark info.",
-      `${response.status} ${response.statusText}`,
-    );
+  if (!response.success) {
+    throw response.error;
   }
 
-  const data = (await response.json()) as TrademarkResponseData;
+  const data = (await response.data.json()) as TrademarkResponseData;
 
   if (!data.metadata || !data.prosecutionHistory || !data.prosecutionHistory[0]) {
-    throw new TypeError("Invalid response data");
+    throw new TypeError(`Invalid trademark response data: ${JSON.stringify(data)}`);
   }
 
   return {
@@ -136,7 +137,7 @@ async function initializeMonitor(trademarksInfo: TrademarksInfo, traceId: string
 function compareTrademarksInfo(newInfo: TrademarksInfo, oldInfo: TrademarksInfo): ComparisonResult {
   const changedTrademarksInfo: ChangedTrademarksInfo = {};
 
-  for (const trademarkName of Object.keys(newInfo) as (keyof TrademarksInfo)[]) {
+  for (const trademarkName of Object.keys(newInfo) as TrademarkType[]) {
     const newTrademark = newInfo[trademarkName];
     const oldTrademark = oldInfo[trademarkName];
 
@@ -145,8 +146,8 @@ function compareTrademarksInfo(newInfo: TrademarksInfo, oldInfo: TrademarksInfo)
     }
 
     changedTrademarksInfo[trademarkName] = {
-      old: oldTrademark,
       new: newTrademark,
+      old: oldTrademark,
     };
   }
 
@@ -159,20 +160,15 @@ function compareTrademarksInfo(newInfo: TrademarksInfo, oldInfo: TrademarksInfo)
 async function reportChanges(
   changedTrademarksInfos: ChangedTrademarksInfo,
   channelId: string,
-  time: Date,
   traceId: string,
 ): Promise<void> {
   for (const [trademarkName, trademarkInfo] of Object.entries(changedTrademarksInfos)) {
-    const payload = buildUpdatePayload(
-      trademarkName as keyof TrademarksInfo,
-      trademarkInfo.new,
-      time,
-    );
-    await sendMessage(channelId, payload);
+    const payload = buildUpdatePayload(trademarkName as TrademarkType, trademarkInfo.new);
+    await sendMessage(payload, channelId);
 
     info(
       LOG_NAME,
-      `Trademark ${trademarkName} changed from ${JSON.stringify(trademarkInfo.old)} to ${JSON.stringify(trademarkInfo.new)}.`,
+      `Trademark ${trademarkName} changed from ${JSON.stringify(trademarkInfo.old)} to ${JSON.stringify(trademarkInfo.new)}`,
       traceId,
     );
   }

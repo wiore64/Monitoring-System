@@ -143,7 +143,7 @@ async function initializeMonitor(
   traceId: string,
 ): Promise<void> {
   const payload = buildMainPayload(channelInfo, time);
-  const message = await sendMessage(channelId, payload);
+  const message = await sendMessage(payload, channelId);
 
   state["message-id"] = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
@@ -183,7 +183,7 @@ async function handleUpdate(
   traceId: string,
 ): Promise<void> {
   const mainPayload = buildMainPayload(channelInfo, time);
-  await editMessage(channelId, messageId, mainPayload);
+  await editMessage(mainPayload, channelId, messageId);
 
   for (const [field, { oldValue, newValue }] of Object.entries(changedFields)) {
     if (["viewCount", "subCount"].includes(field)) {
@@ -192,7 +192,7 @@ async function handleUpdate(
 
     // Also, suppressing the type assertion here because it is obvious what it complains about is impossible.
     const updatePayload = buildUpdatePayload(field as keyof ChannelInfo, oldValue, newValue, time);
-    await sendMessage(channelId, updatePayload);
+    await sendMessage(updatePayload, channelId);
 
     info(LOG_NAME, `${field} observed to be updated.`, traceId);
   }

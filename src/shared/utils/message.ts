@@ -15,7 +15,7 @@ export type Payload = {
   files?: AttachmentBuilder[];
 };
 
-export async function sendMessage(channelId: string, payload: Payload): Promise<Message> {
+export async function sendMessage(payload: Payload, channelId: string): Promise<Message> {
   try {
     const channel =
       client.channels.cache.get(channelId) ?? (await client.channels.fetch(channelId));
@@ -41,9 +41,9 @@ export async function sendMessage(channelId: string, payload: Payload): Promise<
 }
 
 export async function editMessage(
+  payload: Payload,
   channelId: string,
   messageId: string,
-  payload: Payload,
 ): Promise<Message> {
   try {
     const channel =

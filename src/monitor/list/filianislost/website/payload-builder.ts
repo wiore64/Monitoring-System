@@ -3,16 +3,13 @@ import { EmbedBuilder } from "discord.js";
 import config from "#data/filianislost/website/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
-export function buildMainPayload(isWebsiteAvailable: boolean, time: Date): Payload {
-  const embed = new EmbedBuilder()
-    .setColor(Number(config.main.color))
-    .setDescription(
-      formatContent(config.main.description, {
-        STATUS: isWebsiteAvailable ? "Available" : "Unavailable",
-        TIMESTAMP: time.toUTCString(),
-      }),
-    )
-    .setTimestamp(time);
+export function buildMainPayload(isWebsiteAvailable: boolean, timestamp: string): Payload {
+  const embed = new EmbedBuilder().setColor(Number(config.main.color)).setDescription(
+    formatContent(config.main.description, {
+      STATUS: isWebsiteAvailable ? "Available" : "Unavailable",
+      TIMESTAMP: timestamp,
+    }),
+  );
 
   return { embeds: [embed] };
 }
@@ -26,8 +23,7 @@ export function buildWebsiteReturnPayload(duration: string, time: Date): Payload
         DURATION: duration,
         TIMESTAMP: time.toUTCString(),
       }),
-    )
-    .setTimestamp(time);
+    );
 
   return { embeds: [embed] };
 }
@@ -41,8 +37,7 @@ export function buildWebsiteAvailablePayload(duration: string, time: Date): Payl
         DURATION: duration,
         TIMESTAMP: time.toUTCString(),
       }),
-    )
-    .setTimestamp(time);
+    );
 
   return { embeds: [embed] };
 }
@@ -56,8 +51,7 @@ export function buildWebsiteUnavailablePayload(duration: string, time: Date): Pa
         DURATION: duration,
         TIMESTAMP: time.toUTCString(),
       }),
-    )
-    .setTimestamp(time);
+    );
 
   return { embeds: [embed] };
 }

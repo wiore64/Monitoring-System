@@ -16,23 +16,20 @@ export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
         MAX_ONLINE: serverInfo.maxOnline,
         TIMESTAMP: time.toUTCString(),
       }),
-    )
-    .setTimestamp(time);
+    );
 
   const motdEmbed = new EmbedBuilder()
     .setColor(Number(config.main.motd.color))
     .setTitle(config.main.motd.title)
-    .setDescription(serverInfo.motd)
-    .setTimestamp(time);
+    .setDescription(serverInfo.motd);
 
-  const attachment = new AttachmentBuilder(Buffer.from(serverInfo.iconBase64, "base64"), {
+  const attachment = new AttachmentBuilder(Buffer.from(serverInfo.icon, "base64"), {
     name: "icon.png",
   });
   const iconEmbed = new EmbedBuilder()
     .setColor(Number(config.main.icon.color))
     .setTitle(config.main.icon.title)
-    .setImage("attachment://icon.png")
-    .setTimestamp(time);
+    .setImage("attachment://icon.png");
 
   return {
     embeds: [generalEmbed, motdEmbed, iconEmbed],
@@ -41,8 +38,8 @@ export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
 }
 export function buildUpdatePayload<K extends keyof ServerInfo>(
   key: K,
-  oldValue: ServerInfo[K],
   newValue: ServerInfo[K],
+  oldValue: ServerInfo[K],
   time: Date,
 ): Payload {
   const generalEmbed = new EmbedBuilder()
@@ -53,36 +50,33 @@ export function buildUpdatePayload<K extends keyof ServerInfo>(
         TARGET: key,
         TIMESTAMP: time.toUTCString(),
       }),
-    )
-    .setTimestamp(time);
+    );
 
-  const newVersionEmbed = new EmbedBuilder()
+  const newValueEmbed = new EmbedBuilder()
     .setColor(Number(config.update.new.color))
-    .setTitle(config.update.new.title)
-    .setTimestamp(time);
+    .setTitle(config.update.new.title);
 
-  const oldVersionEmbed = new EmbedBuilder()
+  const oldValueEmbed = new EmbedBuilder()
     .setColor(Number(config.update.old.color))
-    .setTitle(config.update.old.title)
-    .setTimestamp(time);
+    .setTitle(config.update.old.title);
 
-  const payload: Payload = { embeds: [generalEmbed, newVersionEmbed, oldVersionEmbed] };
+  const payload: Payload = { embeds: [generalEmbed, newValueEmbed, oldValueEmbed] };
 
-  if (key === "iconBase64") {
+  if (key === "icon") {
     const newIcon = new AttachmentBuilder(Buffer.from(String(newValue), "base64"), {
       name: "new_icon.png",
     });
-    newVersionEmbed.setImage("attachment://new_icon.png");
+    newValueEmbed.setImage("attachment://new_icon.png");
 
     const oldIcon = new AttachmentBuilder(Buffer.from(String(oldValue), "base64"), {
       name: "old_icon.png",
     });
-    oldVersionEmbed.setImage("attachment://old_icon.png");
+    oldValueEmbed.setImage("attachment://old_icon.png");
 
     payload.files = [newIcon, oldIcon];
   } else {
-    newVersionEmbed.setDescription(String(newValue));
-    oldVersionEmbed.setDescription(String(oldValue));
+    newValueEmbed.setDescription(String(newValue));
+    oldValueEmbed.setDescription(String(oldValue));
   }
 
   return payload;

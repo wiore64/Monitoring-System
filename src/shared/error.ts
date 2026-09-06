@@ -5,7 +5,7 @@ const DNS_ERROR_CODES: ReadonlySet<string> = new Set([
   "EAI_AGAIN",
 ]);
 
-abstract class ConnectionError extends Error {
+export abstract class ConnectionError extends Error {
   readonly code: string;
   readonly trace: string;
 

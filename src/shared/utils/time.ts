@@ -70,7 +70,7 @@ export function isInDayOfWeekAndTimeRange(
   return nowTime >= startTime && nowTime <= endTime && isInTimeRange(start, end, now);
 }
 
-export function findDifference(before: Timestamp, now: Timestamp): number {
+export function findDifference(now: Timestamp, before: Timestamp): number {
   const nowDate = toDate(now);
   const beforeDate = toDate(before);
 

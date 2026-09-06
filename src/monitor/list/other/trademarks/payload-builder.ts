@@ -8,7 +8,6 @@ import { type TrademarkInfo, type TrademarkType } from "./monitor.js";
 export function buildUpdatePayload(
   trademarkName: TrademarkType,
   trademarkInfo: TrademarkInfo,
-  time: Date,
 ): Payload {
   const embed = new EmbedBuilder()
     .setColor(Number(config.update.color))
@@ -20,8 +19,7 @@ export function buildUpdatePayload(
         DESCRIPTION: trademarkInfo.description,
         DATE: trademarkInfo.date,
       }),
-    )
-    .setTimestamp(time);
+    );
 
   return { embeds: [embed] };
 }

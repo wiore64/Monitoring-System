@@ -1,9 +1,10 @@
 import config from "#data/filianislost/website/monitor-config.json" with { type: "json" };
 import state from "#data/filianislost/website/monitor-state.json" with { type: "json" };
-import { DnsError, translateNetworkError } from "#shared/error.js";
+import { DnsError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
+import { fetchUrl } from "#utils/network.js";
 import { findDifference, formatTimestamp } from "#utils/time.js";
 
 import {
@@ -16,9 +17,7 @@ import {
 const LOG_NAME = "filianislost/website";
 const MONITOR_STATE_PATH = "./data/filianislost/website/monitor-state.json";
 const WEBSITE_STATE_PATH = "./data/filianislost/website/website-state.json";
-
-const WEBSITE_LINK = "https://filianislost.com/";
-const INITIAL_LAST_AVAILABILITY_CHANGE_TIME = new Date("2026-08-27T10:54:00Z");
+const WEBSITE_URL = "https://filianislost.com";
 
 export type MonitorContext = {
   timeoutMs: number;
@@ -67,24 +66,17 @@ export async function run(
 }
 
 async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
-  try {
-    const response = await fetch(WEBSITE_LINK, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    return response.ok;
-  } catch (thing: unknown) {
-    if (!(thing instanceof Error)) {
-      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
-    }
+  const response = await fetchUrl(WEBSITE_URL, timeoutMs);
 
-    const networkError = translateNetworkError(thing);
-
-    if (networkError instanceof DnsError) {
-      throw networkError;
-    }
-
-    return false;
+  if (response.success) {
+    return response.data.ok;
   }
+
+  if (response.error instanceof DnsError) {
+    throw response.error;
+  }
+
+  return false;
 }
 
 async function initializeMonitor(
@@ -93,13 +85,13 @@ async function initializeMonitor(
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const payload = buildMainPayload(isWebsiteAvailable, INITIAL_LAST_AVAILABILITY_CHANGE_TIME);
-  const message = await sendMessage(channelId, payload);
+  const payload = buildMainPayload(isWebsiteAvailable, "N/A");
+  const message = await sendMessage(payload, channelId);
+
+  persistWebsiteStateUpdate(isWebsiteAvailable, isWebsiteAvailable, time);
 
   state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
-
-  persistWebsiteStateUpdate(isWebsiteAvailable, isWebsiteAvailable, time);
 
   info(LOG_NAME, `Initialized.`, traceId);
 }
@@ -112,16 +104,16 @@ async function reportUpdate(
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(isWebsiteAvailable, time);
-  await editMessage(channelId, messageId, mainPayload);
+  const mainPayload = buildMainPayload(isWebsiteAvailable, time.toUTCString());
+  await editMessage(mainPayload, channelId, messageId);
 
   const duration = formatTimestamp(
-    findDifference(oldWebsiteState.lastAvailabilityChangeTimestamp, time),
+    findDifference(time, oldWebsiteState.lastAvailabilityChangeTimestamp),
   );
 
   if (isWebsiteAvailable && !oldWebsiteState.hasEverReturned) {
     const updatePayload = buildWebsiteReturnPayload(duration, time);
-    await sendMessage(channelId, updatePayload);
+    await sendMessage(updatePayload, channelId);
 
     info(LOG_NAME, `Website is finally back after ${duration}!`, traceId);
     return;
@@ -130,7 +122,7 @@ async function reportUpdate(
   const updatePayload = isWebsiteAvailable
     ? buildWebsiteAvailablePayload(duration, time)
     : buildWebsiteUnavailablePayload(duration, time);
-  await sendMessage(channelId, updatePayload);
+  await sendMessage(updatePayload, channelId);
 
   info(
     LOG_NAME,

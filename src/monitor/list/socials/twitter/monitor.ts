@@ -129,7 +129,7 @@ async function handleUpdate(
   traceId: string,
 ): Promise<void> {
   const payload = buildUpdatePayload(time);
-  await sendMessage(channelId, payload);
+  await sendMessage(payload, channelId);
 
   updateLatestPosts(latestPosts);
 

@@ -1,10 +1,4 @@
-import {
-  DnsError,
-  HttpError,
-  TimeoutError,
-  toError,
-  translateNetworkError,
-} from "#shared/error.js";
+import { DnsError, HttpError, TimeoutError, translateNetworkError } from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import {
@@ -161,22 +155,23 @@ export async function runMonitor<T extends MonitorType>(
     const newContext = await executor(context as MonitorContext[T], time, traceId);
 
     monitorContexts.set(monitorType, newContext);
-    setNetworkOutageActive(false, traceId);
+    setNetworkOutageActive(monitorType, false, traceId);
 
     return { success: true };
   } catch (cause: unknown) {
-    const error = toError(cause);
-
-    if (!error) {
-      throw new TypeError(`Unknown error: ${String(cause)}`, { cause });
+    if (!(cause instanceof Error)) {
+      throw new TypeError(`Non-error thrown: ${String(cause)}`, { cause });
     }
 
-    const networkError = translateNetworkError(error);
-    handleMonitorFailure(monitorType, networkError, traceId);
+    handleMonitorFailure(
+      monitorType,
+      cause instanceof TypeError ? cause : translateNetworkError(cause),
+      traceId,
+    );
 
     return {
       success: false,
-      reason: error.message,
+      reason: cause.message,
     };
   } finally {
     runningMonitors.delete(monitorType);
@@ -185,30 +180,34 @@ export async function runMonitor<T extends MonitorType>(
 
 function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: string): void {
   if (error instanceof DnsError) {
-    setNetworkOutageActive(true, traceId);
+    setNetworkOutageActive(monitorType, true, traceId);
     return;
   }
 
-  setNetworkOutageActive(false, traceId);
+  setNetworkOutageActive(monitorType, false, traceId);
 
   if (error instanceof HttpError) {
-    warn(LOG_NAME, `Failed to run ${monitorType}: ${error.message}.`, traceId);
+    warn(LOG_NAME, `Failed to run ${monitorType} (${error.code}): ${error.message}.`, traceId);
     return;
   }
 
   if (error instanceof TimeoutError) {
-    warn(LOG_NAME, `Failed to run ${monitorType}: Timeout.`, traceId);
+    warn(LOG_NAME, `Failed to run ${monitorType} (${error.code}): Timeout.`, traceId);
     return;
   }
 
   warn(
     LOG_NAME,
-    `Failed to run ${monitorType}: ${error.message}.\n\n${error.stack ?? "None."}`,
+    `Failed to run ${monitorType}: ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
     traceId,
   );
 }
 
-function setNetworkOutageActive(isNetworkOutage: boolean, traceId: string): void {
+function setNetworkOutageActive(
+  monitorType: MonitorType,
+  isNetworkOutage: boolean,
+  traceId: string,
+): void {
   if (isNetworkOutageActive === isNetworkOutage) {
     return;
   }
@@ -216,9 +215,17 @@ function setNetworkOutageActive(isNetworkOutage: boolean, traceId: string): void
   isNetworkOutageActive = isNetworkOutage;
 
   if (isNetworkOutage) {
-    severe(LOG_NAME, "Network outage detected. Future DNS errors will be suppressed.", traceId);
+    severe(
+      LOG_NAME,
+      `Network outage detected, according to ${monitorType}. Future DNS errors will be suppressed.`,
+      traceId,
+    );
     return;
   }
 
-  info(LOG_NAME, "Network outage resolved. Future DNS errors are resumed.", traceId);
+  info(
+    LOG_NAME,
+    `Network outage resolved, according to ${monitorType}. Future DNS errors are now resumed.`,
+    traceId,
+  );
 }
