@@ -1,4 +1,10 @@
-import { DnsError, getStack, TimeoutError, toError } from "#shared/error.js";
+import {
+  DnsError,
+  HttpError,
+  TimeoutError,
+  toError,
+  translateNetworkError,
+} from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import {
@@ -70,13 +76,13 @@ type ServiceResult = { success: true } | { success: false; reason: string };
 
 export const MONITOR_PATHS: Record<MonitorType, string> = {
   [MonitorType.BlackfileIndex]: "./list/blackfile-index/monitor.js",
-  [MonitorType.FilianislostWebsite]: "./list/filianislost/monitor.js",
+  [MonitorType.FilianislostWebsite]: "./list/filianislost/website/monitor.js",
   [MonitorType.MinecraftInfo]: "./list/minecraft/info/monitor.js",
   [MonitorType.MinecraftState]: "./list/minecraft/state/monitor.js",
-  [MonitorType.TwitterFilian]: "./list/twitter/filian/monitor.js",
-  [MonitorType.TwitterWall]: "./list/twitter/wall/monitor.js",
-  [MonitorType.Trademark]: "./list/trademark/monitor.js",
-  [MonitorType.YoutubeFilian]: "./list/youtube/filian/monitor.js",
+  [MonitorType.TwitterFilian]: "./list/socials/twitter/monitor.js",
+  [MonitorType.TwitterWall]: "./list/filianislost/twitter/monitor.js",
+  [MonitorType.Trademark]: "./list/other/trademarks/monitor.js",
+  [MonitorType.YoutubeFilian]: "./list/socials/youtube/monitor.js",
 } as const;
 
 const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
@@ -88,45 +94,48 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.TwitterWall]: runTwitterWall,
   [MonitorType.Trademark]: runTrademarks,
   [MonitorType.YoutubeFilian]: runYoutubeFilian,
-} as const;
+};
 
-const monitorIntervals: Map<MonitorType, NodeJS.Timeout> = new Map();
-const monitorContexts: Map<MonitorType, object> = new Map();
+const runningMonitors = new Set<MonitorType>();
+const monitorIntervals = new Map<MonitorType, NodeJS.Timeout>();
+const monitorContexts = new Map<MonitorType, object>();
 
-let isNetworkOutage = false;
+let isNetworkOutageActive = false;
 
 export function startMonitorInterval<T extends MonitorType>(
   monitorType: T,
   initialContext: MonitorContext[T],
   intervalMs: number,
 ): ServiceResult {
-  if (isMonitorInInterval(monitorType)) {
-    return { success: false, reason: `Monitor ${monitorType} already in interval.` };
+  if (monitorIntervals.has(monitorType)) {
+    return {
+      success: false,
+      reason: `Monitor ${monitorType} already has an active interval`,
+    };
   }
 
-  monitorIntervals.set(
-    monitorType,
-    setInterval(() => void runMonitor(monitorType, initialContext), intervalMs),
-  );
+  const interval = setInterval(() => void runMonitor(monitorType, initialContext), intervalMs);
+  monitorIntervals.set(monitorType, interval);
 
   return { success: true };
 }
 
-export function stopMonitorInterval(monitorType: MonitorType) {
-  if (!isMonitorInInterval(monitorType)) {
-    return { success: false, reason: `Monitor ${monitorType} not in interval.` };
+export function stopMonitorInterval(monitorType: MonitorType): ServiceResult {
+  const interval = monitorIntervals.get(monitorType);
+
+  if (!interval) {
+    return {
+      success: false,
+      reason: `Monitor ${monitorType} does not have an active interval`,
+    };
   }
 
-  clearInterval(monitorIntervals.get(monitorType));
-
+  clearInterval(interval);
   monitorIntervals.delete(monitorType);
+
   monitorContexts.delete(monitorType);
 
   return { success: true };
-}
-
-export function isMonitorInInterval(monitorType: MonitorType): boolean {
-  return monitorIntervals.has(monitorType);
 }
 
 export async function runMonitor<T extends MonitorType>(
@@ -135,54 +144,81 @@ export async function runMonitor<T extends MonitorType>(
   time: Date = new Date(),
   traceId: string = generateTraceId(),
 ): Promise<ServiceResult> {
-  const runnable = MONITOR_REGISTRY[monitorType];
-  if (!runnable) {
-    throw new TypeError(`Monitor ${monitorType} not registered.`);
+  if (runningMonitors.has(monitorType)) {
+    return { success: false, reason: `Monitor ${monitorType} is already running` };
   }
 
-  try {
-    const oldContext = monitorContexts.get(monitorType) ?? initialContext;
+  const executor = MONITOR_REGISTRY[monitorType];
 
-    // old context is guaranteed to be of type MonitorContext[T]
-    const newContext = await runnable(oldContext as MonitorContext[T], time, traceId);
+  if (!executor) {
+    throw new TypeError(`Monitor ${monitorType} is not registered`);
+  }
+
+  runningMonitors.add(monitorType);
+
+  try {
+    const context = monitorContexts.get(monitorType) ?? initialContext;
+    const newContext = await executor(context as MonitorContext[T], time, traceId);
 
     monitorContexts.set(monitorType, newContext);
+    setNetworkOutageActive(false, traceId);
 
     return { success: true };
-  } catch (thing: unknown) {
-    const error = toError(thing);
+  } catch (cause: unknown) {
+    const error = toError(cause);
 
     if (!error) {
-      throw new TypeError(`Unknown error: ${thing}`, { cause: thing });
+      throw new TypeError(`Unknown error: ${String(cause)}`, { cause });
     }
 
-    handleMonitorFailure(monitorType, error, traceId);
-    return { success: false, reason: error.message };
+    const networkError = translateNetworkError(error);
+    handleMonitorFailure(monitorType, networkError, traceId);
+
+    return {
+      success: false,
+      reason: error.message,
+    };
+  } finally {
+    runningMonitors.delete(monitorType);
   }
 }
 
-function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: string) {
+function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: string): void {
   if (error instanceof DnsError) {
-    if (isNetworkOutage) {
-      return;
-    }
+    setNetworkOutageActive(true, traceId);
+    return;
+  }
 
-    isNetworkOutage = true;
+  setNetworkOutageActive(false, traceId);
 
+  if (error instanceof HttpError) {
+    warn(LOG_NAME, `Failed to run ${monitorType}: ${error.message}.`, traceId);
+    return;
+  }
+
+  if (error instanceof TimeoutError) {
+    warn(LOG_NAME, `Failed to run ${monitorType}: Timeout.`, traceId);
+    return;
+  }
+
+  warn(
+    LOG_NAME,
+    `Failed to run ${monitorType}: ${error.message}.\n\n${error.stack ?? "None."}`,
+    traceId,
+  );
+}
+
+function setNetworkOutageActive(isNetworkOutage: boolean, traceId: string): void {
+  if (isNetworkOutageActive === isNetworkOutage) {
+    return;
+  }
+
+  isNetworkOutageActive = isNetworkOutage;
+
+  if (isNetworkOutage) {
     severe(LOG_NAME, "Network outage detected. Future DNS errors will be suppressed.", traceId);
     return;
   }
 
-  if (isNetworkOutage) {
-    isNetworkOutage = false;
-
-    info(LOG_NAME, "Network outage resolved. Future DNS errors are resumed.", traceId);
-  }
-
-  if (error instanceof TimeoutError) {
-    severe(LOG_NAME, `Failed to run ${monitorType}: Timeout.`, traceId);
-  } else {
-    const reason = error.stack ? `${error.message}\n${getStack(error)}` : error.message;
-    warn(LOG_NAME, `Failed to run ${monitorType}: ${reason}`, traceId);
-  }
+  info(LOG_NAME, "Network outage resolved. Future DNS errors are resumed.", traceId);
 }
