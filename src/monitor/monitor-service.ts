@@ -163,13 +163,13 @@ export async function runMonitor<T extends MonitorType>(
       throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
     }
 
-    updateNetworkOutageState(monitorType, cause instanceof DnsError, traceId);
-
     warn(
       LOG_NAME,
       `Failed to run ${monitorType} (${getCode(cause) ?? cause.name}): ${cause.message}.\n\n${cause.stack ?? "No stack trace provided."}`,
       traceId,
     );
+
+    updateNetworkOutageState(monitorType, cause instanceof DnsError, traceId);
 
     return {
       success: false,
