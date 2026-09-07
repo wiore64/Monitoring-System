@@ -2,12 +2,14 @@ import {
   Message,
   type AttachmentBuilder,
   type EmbedBuilder,
-  type MessageEditOptions,
   type MessageCreateOptions,
+  type MessageEditOptions,
 } from "discord.js";
 
+// Are we sure about the current error handling technique?
+
 import { client } from "#root/bootstrap.js";
-import { toError, translateNetworkError } from "#shared/error.js";
+import { toError, classifyNetworkError, ValidationError } from "#shared/error.js";
 
 export type Payload = {
   content?: string;
@@ -21,11 +23,11 @@ export async function sendMessage(payload: Payload, channelId: string): Promise<
       client.channels.cache.get(channelId) ?? (await client.channels.fetch(channelId));
 
     if (!channel) {
-      throw new TypeError(`Channel not found: ${channelId}`);
+      throw new ValidationError(`Channel not found: ${channelId}`, "CHANNEL_NOT_FOUND");
     }
 
     if (!channel.isSendable()) {
-      throw new TypeError(`Channel is not sendable: ${channelId}`);
+      throw new ValidationError(`Channel is not sendable: ${channelId}`, "CHANNEL_NOT_SENDABLE");
     }
 
     return await channel.send(buildOptions(payload));
@@ -33,14 +35,14 @@ export async function sendMessage(payload: Payload, channelId: string): Promise<
     const error = toError(cause);
 
     if (!error) {
-      throw new TypeError(`Non-error thrown: ${cause}`, { cause });
+      throw new ValidationError(`Non-error thrown: ${cause}`, "NON_ERROR");
     }
 
-    if (error instanceof TypeError) {
+    if (error instanceof ValidationError) {
       throw error;
     }
 
-    throw translateNetworkError(error);
+    throw classifyNetworkError(error);
   }
 }
 
@@ -54,18 +56,21 @@ export async function editMessage(
       client.channels.cache.get(channelId) ?? (await client.channels.fetch(channelId));
 
     if (!channel) {
-      throw new TypeError(`Channel not found: ${channelId}`);
+      throw new ValidationError(`Channel not found: ${channelId}`, "CHANNEL_NOT_FOUND");
     }
 
     if (!channel.isTextBased()) {
-      throw new TypeError(`Channel is not text-based: ${channelId}`);
+      throw new ValidationError(
+        `Channel is not text-based: ${channelId}`,
+        "CHANNEL_NOT_TEXT_BASED",
+      );
     }
 
     const message =
       channel.messages.cache.get(messageId) ?? (await channel.messages.fetch(messageId));
 
     if (!message) {
-      throw new TypeError(`Message not found: ${messageId}`);
+      throw new ValidationError(`Message not found: ${messageId}`, "MESSAGE_NOT_FOUND");
     }
 
     return await message.edit(buildOptions(payload));
@@ -73,14 +78,14 @@ export async function editMessage(
     const error = toError(cause);
 
     if (!error) {
-      throw new TypeError(`Non-error thrown: ${cause}`, { cause });
+      throw new ValidationError(`Non-error thrown: ${cause}`, "NON_ERROR");
     }
 
-    if (error instanceof TypeError) {
+    if (error instanceof ValidationError) {
       throw error;
     }
 
-    throw translateNetworkError(error);
+    throw classifyNetworkError(error);
   }
 }
 

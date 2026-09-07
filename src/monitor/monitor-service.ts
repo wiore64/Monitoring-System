@@ -165,7 +165,11 @@ export async function runMonitor<T extends MonitorType>(
 
     updateNetworkOutageState(monitorType, cause instanceof DnsError, traceId);
 
-    warn(LOG_NAME, `Failed to run ${monitorType} (${getCode(cause) ?? cause.name}): ${cause.message}.\n\n${cause.stack ?? "No stack trace provided."}`, traceId);
+    warn(
+      LOG_NAME,
+      `Failed to run ${monitorType} (${getCode(cause) ?? cause.name}): ${cause.message}.\n\n${cause.stack ?? "No stack trace provided."}`,
+      traceId,
+    );
 
     return {
       success: false,

@@ -1,6 +1,5 @@
 import config from "#data/filianislost/website/monitor-config.json" with { type: "json" };
 import state from "#data/filianislost/website/monitor-state.json" with { type: "json" };
-import { DnsError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -72,11 +71,12 @@ async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
     return response.data.ok;
   }
 
-  if (response.error instanceof DnsError) {
-    throw response.error;
+  // Does EAI_AGAIN belong here?
+  if (["ENOTFOUND", "EAI_AGAIN"].includes(response.error.code)) {
+    return false;
   }
 
-  return false;
+  throw response.error;
 }
 
 async function initializeMonitor(

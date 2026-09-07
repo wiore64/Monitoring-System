@@ -1,5 +1,6 @@
 import config from "#data/other/trademarks/monitor-config.json" with { type: "json" };
 import state from "#data/other/trademarks/monitor-state.json" with { type: "json" };
+import { ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { sendMessage } from "#utils/message.js";
@@ -115,7 +116,10 @@ async function fetchTrademarkInfo(url: string, timeoutMs: number): Promise<Trade
   const data = (await response.data.json()) as TrademarkResponseData;
 
   if (!data.metadata || !data.prosecutionHistory || !data.prosecutionHistory[0]) {
-    throw new TypeError(`Invalid trademark response data: ${JSON.stringify(data)}`);
+    throw new ValidationError(
+      `Invalid trademark response data: ${JSON.stringify(data)}`,
+      "ERR_INVALID_TRADEMARK_RESPONSE_DATA",
+    );
   }
 
   return {

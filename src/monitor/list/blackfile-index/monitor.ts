@@ -1,7 +1,7 @@
 import config from "#data/blackfile-index/monitor-config.json" with { type: "json" };
 import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
-import { debug, info, warn } from "#utils/logger.js";
+import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 import { fetchUrl } from "#utils/network.js";
 import { findDifference, formatTimestamp } from "#utils/time.js";
@@ -71,10 +71,8 @@ async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
     return response.data.ok;
   }
 
+  // Does EAI_AGAIN belong here?
   if (["ENOTFOUND", "EAI_AGAIN"].includes(response.error.code)) {
-    if (response.error.code === "EAI_AGAIN") {
-      warn(LOG_NAME, "Website is not available.", "DEBUG");
-    }
     return false;
   }
 

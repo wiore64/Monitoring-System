@@ -1,7 +1,7 @@
-import { toError, translateNetworkError } from "#shared/error.js";
+import { ConnectionError, toError, classifyNetworkError, ValidationError } from "#shared/error.js";
 
 type FetchUrlResult =
-  { success: true; data: Response } | { success: false; error: Error };
+  { success: true; data: Response } | { success: false; error: ValidationError | ConnectionError };
 
 export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrlResult> {
   try {
@@ -15,13 +15,13 @@ export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrl
     if (!error) {
       return {
         success: false,
-        error: new TypeError(`Non-error thrown: ${cause}`, { cause }),
+        error: new ValidationError(`Non-error thrown: ${cause}`, "NON_ERROR"),
       };
     }
 
     return {
       success: false,
-      error: translateNetworkError(error),
+      error: classifyNetworkError(error),
     };
   }
 }

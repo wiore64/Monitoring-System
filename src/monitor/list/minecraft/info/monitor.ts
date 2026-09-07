@@ -2,7 +2,7 @@ import net from "node:net";
 
 import config from "#data/minecraft/info/monitor-config.json" with { type: "json" };
 import state from "#data/minecraft/info/monitor-state.json" with { type: "json" };
-import { DnsError, translateNetworkError } from "#shared/error.js";
+import { DnsError, classifyNetworkError, ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -178,9 +178,9 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
     socket.once("error", (error: Error) => {
       socket.destroy();
 
-      const networkError = translateNetworkError(error);
+      const networkError = classifyNetworkError(error);
 
-      // todo: Check errors
+      // Check errors
       if (networkError instanceof DnsError) {
         res({
           success: false,
@@ -325,7 +325,7 @@ function decodeVarInt(buffer: Buffer, offset: number): { value: number; offset: 
     position += 7;
 
     if (position > 32) {
-      throw new TypeError("VarInt is too big.");
+      throw new ValidationError("VarInt is too big.", "ERR_VARINT_TOO_BIG");
     }
   }
 
