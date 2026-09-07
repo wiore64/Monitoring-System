@@ -29,11 +29,15 @@ export async function sendMessage(payload: Payload, channelId: string): Promise<
     }
 
     return await channel.send(buildOptions(payload));
-  } catch (thing: unknown) {
-    const error = toError(thing);
+  } catch (cause: unknown) {
+    const error = toError(cause);
 
     if (!error) {
-      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
+      throw new TypeError(`Non-error thrown: ${cause}`, { cause });
+    }
+
+    if (error instanceof TypeError) {
+      throw error;
     }
 
     throw translateNetworkError(error);
@@ -65,11 +69,15 @@ export async function editMessage(
     }
 
     return await message.edit(buildOptions(payload));
-  } catch (thing: unknown) {
-    const error = toError(thing);
+  } catch (cause: unknown) {
+    const error = toError(cause);
 
     if (!error) {
-      throw new TypeError(`Non-error thrown: ${thing}`, { cause: thing });
+      throw new TypeError(`Non-error thrown: ${cause}`, { cause });
+    }
+
+    if (error instanceof TypeError) {
+      throw error;
     }
 
     throw translateNetworkError(error);

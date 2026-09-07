@@ -87,6 +87,6 @@ export function getCause(error: Error): Error | undefined {
   return toError(error.cause);
 }
 
-export function getCode(error: Error): string {
+export function getCode(error: Error): string | undefined {
   return "code" in error && typeof error.code === "string" ? error.code : "";
 }

@@ -1,4 +1,4 @@
-import { DnsError, HttpError, TimeoutError, translateNetworkError } from "#shared/error.js";
+import { DnsError, getCode } from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import {
@@ -155,19 +155,17 @@ export async function runMonitor<T extends MonitorType>(
     const newContext = await executor(context as MonitorContext[T], time, traceId);
 
     monitorContexts.set(monitorType, newContext);
-    setNetworkOutageActive(monitorType, false, traceId);
+    updateNetworkOutageState(monitorType, false, traceId);
 
     return { success: true };
   } catch (cause: unknown) {
     if (!(cause instanceof Error)) {
-      throw new TypeError(`Non-error thrown: ${String(cause)}`, { cause });
+      throw new TypeError(`Non-error thrown: ${JSON.stringify(cause)}`, { cause });
     }
 
-    handleMonitorFailure(
-      monitorType,
-      cause instanceof TypeError ? cause : translateNetworkError(cause),
-      traceId,
-    );
+    updateNetworkOutageState(monitorType, cause instanceof DnsError, traceId);
+
+    warn(LOG_NAME, `Failed to run ${monitorType} (${getCode(cause) ?? cause.name}): ${cause.message}.\n\n${cause.stack ?? "No stack trace provided."}`, traceId);
 
     return {
       success: false,
@@ -178,37 +176,12 @@ export async function runMonitor<T extends MonitorType>(
   }
 }
 
-function handleMonitorFailure(monitorType: MonitorType, error: Error, traceId: string): void {
-  if (error instanceof DnsError) {
-    setNetworkOutageActive(monitorType, true, traceId);
-    return;
-  }
-
-  setNetworkOutageActive(monitorType, false, traceId);
-
-  if (error instanceof HttpError) {
-    warn(LOG_NAME, `Failed to run ${monitorType} (${error.code}): ${error.message}.`, traceId);
-    return;
-  }
-
-  if (error instanceof TimeoutError) {
-    warn(LOG_NAME, `Failed to run ${monitorType} (${error.code}): Timeout.`, traceId);
-    return;
-  }
-
-  warn(
-    LOG_NAME,
-    `Failed to run ${monitorType}: ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
-    traceId,
-  );
-}
-
-function setNetworkOutageActive(
+function updateNetworkOutageState(
   monitorType: MonitorType,
   isNetworkOutage: boolean,
   traceId: string,
 ): void {
-  if (isNetworkOutageActive === isNetworkOutage) {
+  if (isNetworkOutage === isNetworkOutageActive) {
     return;
   }
 
