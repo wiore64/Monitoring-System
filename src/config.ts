@@ -1,3 +1,5 @@
+import { ValidationError } from "./shared/error.js";
+
 export const config = {
   botToken: getEnvVar("BOT_TOKEN"),
   ytToken: getEnvVar("YT_TOKEN"),
@@ -12,7 +14,7 @@ function getEnvVar(key: string): string {
   const value = process.env[key];
 
   if (!value) {
-    throw new Error(`Environment variable ${key} not found.`);
+    throw new ValidationError(`Environment variable ${key} not found.`, "ENV_VAR_NOT_FOUND");
   }
 
   return value;

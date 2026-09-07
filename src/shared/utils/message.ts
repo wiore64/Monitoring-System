@@ -35,7 +35,7 @@ export async function sendMessage(payload: Payload, channelId: string): Promise<
     const error = toError(cause);
 
     if (!error) {
-      throw new ValidationError(`Non-error thrown: ${cause}`, "NON_ERROR");
+      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
     }
 
     if (error instanceof ValidationError) {
@@ -78,7 +78,7 @@ export async function editMessage(
     const error = toError(cause);
 
     if (!error) {
-      throw new ValidationError(`Non-error thrown: ${cause}`, "NON_ERROR");
+      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
     }
 
     if (error instanceof ValidationError) {

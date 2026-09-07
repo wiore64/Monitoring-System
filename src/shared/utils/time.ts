@@ -1,3 +1,5 @@
+import { ValidationError } from "#shared/error.js";
+
 const MONTH = 30 * 24 * 60 * 60;
 const DAY = 24 * 60 * 60;
 const HOUR = 60 * 60;
@@ -90,7 +92,7 @@ function toDate(timestamp: Timestamp): Date {
     return new Date(timestamp);
   }
 
-  throw new TypeError(`Invalid timestamp: ${timestamp}`);
+  throw new ValidationError(`Invalid timestamp: ${timestamp}`, "INVALID_TIMESTAMP");
 }
 
 function getAdjustedDayOfWeek(dayOfWeek: number): number {
@@ -110,6 +112,6 @@ function getAdjustedDayOfWeek(dayOfWeek: number): number {
     case 6:
       return 5;
     default:
-      throw new TypeError(`Invalid day of week: ${dayOfWeek}`);
+      throw new ValidationError(`Invalid day of week: ${dayOfWeek}`, "INVALID_DAY_OF_WEEK");
   }
 }

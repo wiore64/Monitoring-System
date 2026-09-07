@@ -1,4 +1,4 @@
-import { DnsError, getCode } from "#shared/error.js";
+import { DnsError, getCode, ValidationError } from "#shared/error.js";
 import { generateTraceId, info, severe, warn } from "#utils/logger.js";
 
 import {
@@ -160,7 +160,7 @@ export async function runMonitor<T extends MonitorType>(
     return { success: true };
   } catch (cause: unknown) {
     if (!(cause instanceof Error)) {
-      throw new TypeError(`Non-error thrown: ${JSON.stringify(cause)}`, { cause });
+      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
     }
 
     updateNetworkOutageState(monitorType, cause instanceof DnsError, traceId);

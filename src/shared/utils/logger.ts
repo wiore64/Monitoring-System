@@ -1,3 +1,4 @@
+import { ValidationError } from "#shared/error.js";
 import { appendFile } from "#utils/file.js";
 
 const LOG_PATHS: Record<LogLevel, string> = {
@@ -56,7 +57,10 @@ function log(level: LogLevel, origin: string, message: string, traceId: string):
       saveRecord(path, record);
       break;
     default:
-      throw new TypeError(`Unknown log level '${level}' for the log record: ${record}`);
+      throw new ValidationError(
+        `Unknown log level '${level}' for the log record: ${record}`,
+        "UNKNOWN_LOG_LEVEL",
+      );
   }
 }
 

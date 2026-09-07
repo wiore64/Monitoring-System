@@ -15,7 +15,7 @@ export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrl
     if (!error) {
       return {
         success: false,
-        error: new ValidationError(`Non-error thrown: ${cause}`, "NON_ERROR"),
+        error: new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR"),
       };
     }
 
