@@ -1,10 +1,11 @@
 import config from "#data/blackfile-index/monitor-config.json" with { type: "json" };
 import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
+import { getCode } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 import { fetchUrl } from "#utils/network.js";
-import { findDifference, formatTimestamp } from "#utils/time.js";
+import { findDifference, formatDuration } from "#utils/time.js";
 
 import {
   buildMainPayload,
@@ -71,8 +72,7 @@ async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
     return response.data.ok;
   }
 
-  // Does EAI_AGAIN belong here?
-  if (["ENOTFOUND", "EAI_AGAIN"].includes(response.error.code)) {
+  if ("ENOTFOUND" === (getCode(response.error) ?? "")) {
     return false;
   }
 
@@ -86,7 +86,7 @@ async function initializeMonitor(
   traceId: string,
 ): Promise<void> {
   const payload = buildMainPayload(isWebsiteAvailable, "N/A");
-  const message = await sendMessage(payload, channelId);
+  const message = await sendMessage(channelId, payload);
 
   persistWebsiteStateUpdate(isWebsiteAvailable, isWebsiteAvailable, time);
 
@@ -107,13 +107,13 @@ async function reportUpdate(
   const mainPayload = buildMainPayload(isWebsiteAvailable, time.toUTCString());
   await editMessage(mainPayload, channelId, messageId);
 
-  const duration = formatTimestamp(
+  const duration = formatDuration(
     findDifference(time, oldWebsiteState.lastAvailabilityChangeTimestamp),
   );
 
   if (isWebsiteAvailable && !oldWebsiteState.hasEverReturned) {
     const updatePayload = buildWebsiteReturnPayload(duration, time);
-    await sendMessage(updatePayload, channelId);
+    await sendMessage(channelId, updatePayload);
 
     info(LOG_NAME, `Website is finally back after ${duration}!`, traceId);
     return;
@@ -122,7 +122,7 @@ async function reportUpdate(
   const updatePayload = isWebsiteAvailable
     ? buildWebsiteAvailablePayload(duration, time)
     : buildWebsiteUnavailablePayload(duration, time);
-  await sendMessage(updatePayload, channelId);
+  await sendMessage(channelId, updatePayload);
 
   info(
     LOG_NAME,
@@ -137,7 +137,7 @@ function persistWebsiteStateUpdate(
   time: Date,
 ): void {
   writeJsonFile(WEBSITE_STATE_PATH, {
-    hasReturned: hasEverReturned || isWebsiteAvailable,
+    hasEverReturned: hasEverReturned || isWebsiteAvailable,
     isAvailable: isWebsiteAvailable,
     lastAvailabilityChangeTimestamp: time.toISOString(),
   });

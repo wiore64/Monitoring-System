@@ -1,14 +1,12 @@
-import { ValidationError } from "#shared/error.js";
-
 const MONTH = 30 * 24 * 60 * 60;
 const DAY = 24 * 60 * 60;
 const HOUR = 60 * 60;
 const MINUTE = 60;
 
-export type Timestamp = string | number | Date;
+type Timestamp = string | number | Date;
 
-export function formatTimestamp(timestamp: Timestamp): string {
-  let remaining = Math.floor(toDate(timestamp).getTime() / 1000);
+export function formatDuration(duration: number): string {
+  let remaining = Math.floor(duration / 1000);
 
   const months = Math.floor(remaining / MONTH);
   remaining %= MONTH;
@@ -49,69 +47,31 @@ export function isInTimeRange(start: Timestamp, end: Timestamp, now: Timestamp):
   const nowDate = toDate(now);
 
   const startTime =
-    startDate.getHours() * 3600 + startDate.getMinutes() * 60 + startDate.getSeconds();
-  const endTime = endDate.getHours() * 3600 + endDate.getMinutes() * 60 + endDate.getSeconds();
-  const nowTime = nowDate.getHours() * 3600 + nowDate.getMinutes() * 60 + nowDate.getSeconds();
+    startDate.getUTCHours() * 3600 + startDate.getUTCMinutes() * 60 + startDate.getUTCSeconds();
+  const endTime =
+    endDate.getUTCHours() * 3600 + endDate.getUTCMinutes() * 60 + endDate.getUTCSeconds();
+  const nowTime =
+    nowDate.getUTCHours() * 3600 + nowDate.getUTCMinutes() * 60 + nowDate.getUTCSeconds();
 
   return nowTime >= startTime && nowTime <= endTime;
 }
 
-export function isInDayOfWeekAndTimeRange(
-  start: Timestamp,
-  end: Timestamp,
-  now: Timestamp,
-): boolean {
-  const startDate = toDate(start);
-  const endDate = toDate(end);
-  const nowDate = toDate(now);
+export function isInDayAndTimeRange(start: Timestamp, end: Timestamp, now: Timestamp): boolean {
+  const startTime = toNumber(start);
+  const endTime = toNumber(end);
+  const nowTime = toNumber(now);
 
-  const startTime = getAdjustedDayOfWeek(startDate.getDay());
-  const endTime = getAdjustedDayOfWeek(endDate.getDay());
-  const nowTime = getAdjustedDayOfWeek(nowDate.getDay());
-
-  return nowTime >= startTime && nowTime <= endTime && isInTimeRange(start, end, now);
+  return nowTime >= startTime && nowTime <= endTime;
 }
 
 export function findDifference(now: Timestamp, before: Timestamp): number {
-  const nowDate = toDate(now);
-  const beforeDate = toDate(before);
-
-  return nowDate.getTime() - beforeDate.getTime();
+  return toNumber(now) - toNumber(before);
 }
 
 function toDate(timestamp: Timestamp): Date {
-  if (timestamp instanceof Date) {
-    return timestamp;
-  }
-
-  if (typeof timestamp === "string") {
-    return new Date(timestamp);
-  }
-
-  if (typeof timestamp === "number") {
-    return new Date(timestamp);
-  }
-
-  throw new ValidationError(`Invalid timestamp: ${timestamp}`, "INVALID_TIMESTAMP");
+  return timestamp instanceof Date ? timestamp : new Date(timestamp);
 }
 
-function getAdjustedDayOfWeek(dayOfWeek: number): number {
-  switch (dayOfWeek) {
-    case 0:
-      return 6;
-    case 1:
-      return 0;
-    case 2:
-      return 1;
-    case 3:
-      return 2;
-    case 4:
-      return 3;
-    case 5:
-      return 4;
-    case 6:
-      return 5;
-    default:
-      throw new ValidationError(`Invalid day of week: ${dayOfWeek}`, "INVALID_DAY_OF_WEEK");
-  }
+function toNumber(timestamp: Timestamp): number {
+  return typeof timestamp === "number" ? timestamp : toDate(timestamp).getTime();
 }

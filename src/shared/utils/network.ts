@@ -1,13 +1,26 @@
-import { ConnectionError, toError, classifyNetworkError, ValidationError } from "#shared/error.js";
+import { toError, classifyNetworkError, ValidationError, HttpError } from "#shared/error.js";
 
-type FetchUrlResult =
-  { success: true; data: Response } | { success: false; error: ValidationError | ConnectionError };
+type FetchUrlResult = { success: true; data: Response } | { success: false; error: Error };
 
 export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrlResult> {
   try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (response.status >= 400) {
+      return {
+        success: false,
+        error: new HttpError(
+          "Failed to fetch a response.",
+          `${response.status} ${response.statusText}`,
+        ),
+      };
+    }
+
     return {
       success: true,
-      data: await fetch(url, { signal: AbortSignal.timeout(timeoutMs) }),
+      data: response,
     };
   } catch (cause: unknown) {
     const error = toError(cause);
@@ -15,7 +28,7 @@ export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrl
     if (!error) {
       return {
         success: false,
-        error: new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR"),
+        error: new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`),
       };
     }
 

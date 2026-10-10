@@ -1,5 +1,6 @@
 import { Client } from "discord.js";
 
+import { createDirectory } from "#utils/file.js";
 import { info, generateTraceId } from "#utils/logger.js";
 import { config } from "./config.js";
 
@@ -13,6 +14,11 @@ async function run(): Promise<void> {
   const traceId = generateTraceId();
 
   await client.login(config.botToken);
+
+  // Make sure these two exist.
+  createDirectory("./data");
+  createDirectory("./logs");
+
   await initMonitor(traceId);
 
   info(LOG_NAME, "Ready!", traceId);

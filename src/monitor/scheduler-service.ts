@@ -13,6 +13,10 @@ export function initialize(traceId: string = generateTraceId()): void {
   debug(LOG_NAME, "Initializing...", traceId);
 
   for (const [monitorType] of Object.entries(config)) {
+    if (monitorType === MonitorType.FilianislostWebsite) {
+      continue;
+    }
+
     initiateMonitor(monitorType as MonitorType);
   }
 

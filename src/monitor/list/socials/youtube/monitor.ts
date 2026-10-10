@@ -111,8 +111,7 @@ async function fetchChannelInfo(token: string, timeoutMs: number): Promise<Chann
   if (!response.ok) {
     throw new HttpError(
       `Failed to fetch channel info.`,
-      response.status.toString(),
-      response.statusText,
+      `${response.status.toString()} ${response.statusText}`,
     );
   }
 
@@ -143,7 +142,7 @@ async function initializeMonitor(
   traceId: string,
 ): Promise<void> {
   const payload = buildMainPayload(channelInfo, time);
-  const message = await sendMessage(payload, channelId);
+  const message = await sendMessage(channelId, payload);
 
   state["message-id"] = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
@@ -192,7 +191,7 @@ async function handleUpdate(
 
     // Also, suppressing the type assertion here because it is obvious what it complains about is impossible.
     const updatePayload = buildUpdatePayload(field as keyof ChannelInfo, oldValue, newValue, time);
-    await sendMessage(updatePayload, channelId);
+    await sendMessage(channelId, updatePayload);
 
     info(LOG_NAME, `${field} observed to be updated.`, traceId);
   }

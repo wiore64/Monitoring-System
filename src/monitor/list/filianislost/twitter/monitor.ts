@@ -83,8 +83,7 @@ async function fetchLatestPosts(
   if (!response.ok) {
     throw new HttpError(
       "Failed to fetch latest posts.",
-      response.status.toString(),
-      response.statusText,
+      `${response.status.toString()} ${response.statusText}`,
     );
   }
 
@@ -129,7 +128,7 @@ async function handleUpdate(
   traceId: string,
 ): Promise<void> {
   const payload = buildUpdatePayload(time);
-  await sendMessage(payload, channelId);
+  await sendMessage(channelId, payload);
 
   updateLatestPosts(latestPosts);
 

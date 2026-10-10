@@ -168,7 +168,7 @@ async function reportChanges(
 ): Promise<void> {
   for (const [trademarkName, trademarkInfo] of Object.entries(changedTrademarksInfos)) {
     const payload = buildUpdatePayload(trademarkName as TrademarkType, trademarkInfo.new);
-    await sendMessage(payload, channelId);
+    await sendMessage(channelId, payload);
 
     info(
       LOG_NAME,

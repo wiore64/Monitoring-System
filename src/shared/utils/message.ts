@@ -1,15 +1,13 @@
 import {
+  DiscordAPIError,
+  HTTPError,
   Message,
   type AttachmentBuilder,
   type EmbedBuilder,
-  type MessageCreateOptions,
-  type MessageEditOptions,
 } from "discord.js";
 
-// Are we sure about the current error handling technique?
-
 import { client } from "#root/bootstrap.js";
-import { toError, classifyNetworkError, ValidationError } from "#shared/error.js";
+import { toError, classifyNetworkError, ValidationError, HttpError } from "#shared/error.js";
 
 export type Payload = {
   content?: string;
@@ -17,29 +15,33 @@ export type Payload = {
   files?: AttachmentBuilder[];
 };
 
-export async function sendMessage(payload: Payload, channelId: string): Promise<Message> {
+export async function sendMessage(channelId: string, payload: Payload): Promise<Message> {
   try {
     const channel =
       client.channels.cache.get(channelId) ?? (await client.channels.fetch(channelId));
 
     if (!channel) {
-      throw new ValidationError(`Channel not found: ${channelId}`, "CHANNEL_NOT_FOUND");
+      throw new ValidationError(`Channel not found: ${channelId}`);
     }
 
     if (!channel.isSendable()) {
-      throw new ValidationError(`Channel is not sendable: ${channelId}`, "CHANNEL_NOT_SENDABLE");
+      throw new ValidationError(`Channel not sendable: ${channelId}`);
     }
 
-    return await channel.send(buildOptions(payload));
+    return await channel.send(payload);
   } catch (cause: unknown) {
     const error = toError(cause);
 
     if (!error) {
-      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
+      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`);
     }
 
     if (error instanceof ValidationError) {
       throw error;
+    }
+
+    if (error instanceof HTTPError || error instanceof DiscordAPIError) {
+      throw new HttpError(error.message, String(error.status), error);
     }
 
     throw classifyNetworkError(error);
@@ -56,33 +58,34 @@ export async function editMessage(
       client.channels.cache.get(channelId) ?? (await client.channels.fetch(channelId));
 
     if (!channel) {
-      throw new ValidationError(`Channel not found: ${channelId}`, "CHANNEL_NOT_FOUND");
+      throw new ValidationError(`Channel not found: ${channelId}`);
     }
 
     if (!channel.isTextBased()) {
-      throw new ValidationError(
-        `Channel is not text-based: ${channelId}`,
-        "CHANNEL_NOT_TEXT_BASED",
-      );
+      throw new ValidationError(`Channel not text-based: ${channelId}`);
     }
 
     const message =
       channel.messages.cache.get(messageId) ?? (await channel.messages.fetch(messageId));
 
     if (!message) {
-      throw new ValidationError(`Message not found: ${messageId}`, "MESSAGE_NOT_FOUND");
+      throw new ValidationError(`Message not found: ${messageId}`);
     }
 
-    return await message.edit(buildOptions(payload));
+    return await message.edit(payload);
   } catch (cause: unknown) {
     const error = toError(cause);
 
     if (!error) {
-      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
+      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`);
     }
 
     if (error instanceof ValidationError) {
       throw error;
+    }
+
+    if (error instanceof HTTPError || error instanceof DiscordAPIError) {
+      throw new HttpError(error.message, String(error.status), error);
     }
 
     throw classifyNetworkError(error);
@@ -95,25 +98,4 @@ export function formatContent(content: string, map: Record<string, unknown>): st
   }
 
   return content;
-}
-
-function buildOptions(payload: Payload): MessageEditOptions & MessageCreateOptions {
-  const options: MessageEditOptions & MessageCreateOptions = {};
-
-  const embeds = payload.embeds;
-  if (embeds) {
-    options.embeds = embeds;
-  }
-
-  const files = payload.files;
-  if (files) {
-    options.files = files;
-  }
-
-  const content = payload.content;
-  if (content !== undefined) {
-    options.content = content;
-  }
-
-  return options;
 }

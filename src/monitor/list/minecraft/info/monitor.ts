@@ -12,11 +12,7 @@ import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 export const schedulerHooks = {
   isNearRestartWindow: (now: Date): boolean => {
-    return isInTimeRange(
-      config["restart-window"].near.start,
-      config["restart-window"].near.end,
-      now,
-    );
+    return isInTimeRange(config["restart-window"].start, config["restart-window"].end, now);
   },
 };
 
@@ -205,7 +201,7 @@ async function initializeMonitor(
   traceId: string,
 ): Promise<void> {
   const payload = buildMainPayload(serverInfo, time);
-  const message = await sendMessage(payload, channelId);
+  const message = await sendMessage(channelId, payload);
 
   writeJsonFile(SERVER_INFO_PATH, serverInfo);
 
@@ -261,7 +257,7 @@ async function reportUpdate(
     }
 
     const updatePayload = buildUpdatePayload(key as ServerInfoField, values.new, values.old, time);
-    await sendMessage(updatePayload, channelId);
+    await sendMessage(channelId, updatePayload);
 
     info(LOG_NAME, `${key} updated. ${values.old} -> ${values.new}`, traceId);
   }

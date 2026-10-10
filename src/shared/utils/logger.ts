@@ -1,12 +1,11 @@
-import { ValidationError } from "#shared/error.js";
 import { appendFile } from "#utils/file.js";
 
-const LOG_PATHS: Record<LogLevel, string> = {
+const LOG_PATHS = {
   debug: "./logs/debug.log",
   info: "./logs/info.log",
   warn: "./logs/warn.log",
   severe: "./logs/severe.log",
-} as const;
+} as const satisfies Record<LogLevel, string>;
 
 type LogLevel = "debug" | "info" | "warn" | "severe";
 
@@ -41,27 +40,17 @@ function log(level: LogLevel, origin: string, message: string, traceId: string):
   });
 
   switch (level) {
-    case "debug":
-      saveRecord(path, record);
-      break;
     case "info":
       console.info(record);
-      saveRecord(path, record);
       break;
     case "warn":
       console.warn(record);
-      saveRecord(path, record);
       break;
     case "severe":
       console.error(record);
-      saveRecord(path, record);
-      break;
-    default:
-      throw new ValidationError(
-        `Unknown log level '${level}' for the log record: ${record}`,
-        "UNKNOWN_LOG_LEVEL",
-      );
   }
+
+  saveRecord(path, record);
 }
 
 function saveRecord(path: string, record: string): void {

@@ -1,85 +1,89 @@
-const DNS_ERROR_CODES: ReadonlySet<string> = new Set([
-  "EHOSTUNREACH",
-  "ENETUNREACH",
-  "ENOTFOUND",
-  // "EAI_AGAIN",
+const DNS_ERROR_CODES = new Set(["EAI_AGAIN", "ENOTFOUND"]);
+
+const TIMEOUT_ERROR_CODES = new Set([
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
 ]);
 
 export class ValidationError extends Error {
-  readonly code: string;
-  readonly stack: string;
-
-  constructor(message: string, code: string, stack?: string, cause?: Error) {
+  constructor(
+    message: string,
+    readonly code?: string,
+    cause?: Error,
+  ) {
     super(message, { cause });
     this.name = "ValidationError";
-    this.code = code;
-    this.stack = stack ?? "No stack trace provided";
   }
 }
 
-export abstract class ConnectionError extends Error {
-  readonly code: string;
-  readonly stack: string;
-
-  protected constructor(message: string, code: string, stack?: string, cause?: Error) {
-    super(message, cause);
-    this.name = "ConnectionError";
-    this.code = code;
-    this.stack = stack ?? "No stack trace provided";
+abstract class NetworkError extends Error {
+  protected constructor(
+    message: string,
+    readonly code: string,
+    cause?: Error,
+  ) {
+    super(message, { cause });
+    this.name = "NetworkError";
   }
 }
 
-export class HttpError extends ConnectionError {
-  constructor(message: string, code: string, stack?: string, cause?: Error) {
-    super(message, code, stack, cause);
+export class HttpError extends NetworkError {
+  constructor(message: string, code: string, cause?: Error) {
+    super(message, code, cause);
     this.name = "HttpError";
   }
 }
 
-export class DnsError extends ConnectionError {
-  constructor(message: string, code: string, stack?: string, cause?: Error) {
-    super(message, code, stack, cause);
+export class DnsError extends NetworkError {
+  constructor(message: string, code: string, cause?: Error) {
+    super(message, code, cause);
     this.name = "DnsError";
   }
 }
 
-export class TimeoutError extends ConnectionError {
-  constructor(message: string, code: string, stack?: string, cause?: Error) {
-    super(message, code, stack, cause);
+export class TimeoutError extends NetworkError {
+  constructor(message: string, code: string, cause?: Error) {
+    super(message, code, cause);
     this.name = "TimeoutError";
   }
 }
 
-export function toError(cause: unknown): Error | undefined {
-  if (cause == null) {
-    return undefined;
-  }
-
-  return cause instanceof Error ? cause : new Error(String(cause));
-}
-
-// Far from ideal
-
-export function classifyNetworkError(error: Error): HttpError | DnsError | TimeoutError {
-  if (error instanceof HttpError || error instanceof DnsError || error instanceof TimeoutError) {
+export function classifyNetworkError(error: Error): Error {
+  if (error instanceof NetworkError) {
     return error;
   }
 
-  const errorCode = getCode(error) ?? "";
+  let currentError = error;
 
-  if (DNS_ERROR_CODES.has(errorCode)) {
-    return new DnsError(error.message, errorCode, error.stack, error);
+  while (currentError) {
+    const code = getCode(currentError) ?? "";
+
+    if (DNS_ERROR_CODES.has(code)) {
+      return new DnsError(currentError.message, code, error);
+    }
+
+    if (currentError.name === "TimeoutError" || TIMEOUT_ERROR_CODES.has(code)) {
+      return new TimeoutError(currentError.message, code, error);
+    }
+
+    const cause = getCause(error);
+
+    if (cause) {
+      currentError = cause;
+    }
   }
 
-  if (error.name === "TimeoutError") {
-    return new TimeoutError(error.message, errorCode, error.stack, error);
+  return error;
+}
+
+export function toError(thing: unknown): Error | undefined {
+  if (thing == null) {
+    return undefined;
   }
 
-  const cause = getCause(error);
-
-  return cause
-    ? classifyNetworkError(cause)
-    : new HttpError(error.message, errorCode, error.stack, error);
+  return thing instanceof Error ? thing : new Error(String(thing));
 }
 
 export function getCause(error: Error): Error | undefined {
@@ -87,5 +91,5 @@ export function getCause(error: Error): Error | undefined {
 }
 
 export function getCode(error: Error): string | undefined {
-  return "code" in error && typeof error.code === "string" ? error.code : "";
+  return "code" in error && typeof error.code === "string" ? error.code : undefined;
 }
