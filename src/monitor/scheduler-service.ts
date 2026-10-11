@@ -1,121 +1,49 @@
 import config from "#data/scheduler/scheduler-config.json" with { type: "json" };
-import {
-  MONITOR_PATHS,
-  MonitorType,
-  runMonitor,
-  startMonitorInterval,
-} from "#monitor/monitor-service.js";
-import { debug, generateTraceId } from "#utils/logger.js";
+import { MonitorType, type ServiceResult, startMonitorInterval } from "#monitor/monitor-service.js";
+import { debug, severe, generateTraceId } from "#utils/logger.js";
 
 const LOG_NAME = "Scheduler Service";
 
 export function initialize(traceId: string = generateTraceId()): void {
   debug(LOG_NAME, "Initializing...", traceId);
 
-  for (const [monitorType] of Object.entries(config)) {
-    if (monitorType === MonitorType.FilianislostWebsite) {
-      continue;
-    }
+  for (const monitor of Object.keys(config) as MonitorType[]) {
+    // if (
+    //   ![
+    //     MonitorType.BlackfileIndex,
+    //     MonitorType.FilianislostWebsite,
+    //     MonitorType.FilianislostTwitter,
+    //     MonitorType.MinecraftInfo,
+    //     MonitorType.Trademark,
+    //   ].includes(monitor)
+    // ) {
+    //   return;
+    // }
 
-    initiateMonitor(monitorType as MonitorType);
+    if (
+      monitor === MonitorType.BlackfileIndex ||
+      monitor === MonitorType.MinecraftInfo ||
+      monitor === MonitorType.Trademark
+    ) {
+      const result = initiateMonitor(monitor);
+
+      if (!result.success) {
+        severe(LOG_NAME, `Failed to schedule ${monitor}: ${result.reason}`, traceId);
+      } else {
+        debug(LOG_NAME, `Successfully scheduled: ${monitor}`, traceId);
+      }
+    }
   }
 
   debug(LOG_NAME, "Initialized.", traceId);
 }
 
-function initiateMonitor(monitorType: MonitorType): void {
-  switch (monitorType) {
-    case MonitorType.BlackfileIndex:
-      startMonitorInterval(
-        monitorType,
-        {
-          timeoutMs: config[monitorType].timeout,
-        },
-        config[monitorType].interval,
-      );
-      break;
-
-    case MonitorType.FilianislostWebsite:
-      startMonitorInterval(
-        monitorType,
-        {
-          timeoutMs: config[monitorType].timeout,
-        },
-        config[monitorType].interval,
-      );
-      break;
-
-    //     case MonitorType.TwitterWall:
-    //       startMonitorInterval(
-    //         monitor.type,
-    //         {
-    //           "timeout-ms": monitor.config.initial.timeout,
-    //         },
-    //         monitor.config.initial.interval,
-    //       );
-    //       break;
-
-    case MonitorType.MinecraftInfo:
-      startMonitorInterval(
-        monitorType,
-        {
-          timeoutMs: config[monitorType].timeout,
-        },
-        config[monitorType].interval,
-      );
-      // setInterval(() => void adjustMinecraftInfoMonitor(), config[monitorType].adjustment.interval);
-      break;
-
-    //     case MonitorType.MinecraftState:
-    //       startMonitorInterval(
-    //         monitor.type,
-    //         {
-    //           "timeout-ms": monitor.config.initial.timeout,
-    //         },
-    //         monitor.config.initial.interval,
-    //       );
-    //       setInterval(() => void adjustMinecraftStateMonitor(), monitor.config.adjustment.interval);
-    //       break;
-
-    //     case MonitorType.TwitterFilian:
-    //       startMonitorInterval(
-    //         monitor.type,
-    //         {
-    //           "timeout-ms": monitor.config.initial.timeout,
-    //         },
-    //         monitor.config.initial.interval,
-    //       );
-    //       break;
-
-    case MonitorType.Trademark:
-      startMonitorInterval(
-        monitorType,
-        {
-          timeoutMs: config[monitorType].timeout,
-        },
-        config[monitorType].interval,
-      );
-      break;
-
-    //     case MonitorType.YoutubeFilian:
-    //       startMonitorInterval(
-    //         monitor.type,
-    //         {
-    //           "timeout-ms": monitor.config.initial.timeout,
-    //         },
-    //         monitor.config.initial.interval,
-    //       );
-    //       break;
-
-    //     default:
-    //       throw new TypeError(`Unknown monitor type: ${JSON.stringify(monitor)}`);
-  }
-}
-
-// async function adjustMinecraftStateMonitor(): Promise<void> {
-//   const { schedulerHooks } = await import(MONITOR_PATHS[MonitorType.MinecraftState]);
-// }
-
-async function adjustMinecraftInfoMonitor(): Promise<void> {
-  const { schedulerHooks } = await import(MONITOR_PATHS[MonitorType.MinecraftInfo]);
+function initiateMonitor(monitor: MonitorType): ServiceResult {
+  return startMonitorInterval(
+    monitor,
+    {
+      timeoutMs: config[monitor].timeout,
+    },
+    config[monitor].interval,
+  );
 }

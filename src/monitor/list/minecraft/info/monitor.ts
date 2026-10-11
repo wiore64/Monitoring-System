@@ -11,12 +11,13 @@ import { isInTimeRange } from "#utils/time.js";
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 export const schedulerHooks = {
-  isNearRestartWindow: (now: Date): boolean => {
+  isRestartTime: (now: Date): boolean => {
     return isInTimeRange(config["restart-window"].start, config["restart-window"].end, now);
   },
 };
 
-const LOG_NAME = "minecraft/info";
+const LOG_NAME = "monitor/minecraft/info";
+
 const MONITOR_STATE_PATH = "./data/minecraft/info/monitor-state.json";
 const SERVER_INFO_PATH = "./data/minecraft/info/server-info.json";
 
@@ -44,21 +45,19 @@ export type ServerInfo = {
   online: number;
 };
 
-type ServerInfoField = keyof ServerInfo;
-
-type ChangedServerInfo = {
-  [T in ServerInfoField]?: {
+type ModifiedServerInfo = {
+  [T in keyof ServerInfo]?: {
     new: ServerInfo[T];
     old: ServerInfo[T];
   };
 };
 
 type FetchResult =
-  { success: true; isUnavailable: boolean; info: ServerInfo } | { success: false; error: Error };
+  { success: true; isAvailable: boolean; info: ServerInfo } | { success: false; error: Error };
 
 type ComparisonResult = {
   hasChanges: boolean;
-  changedInfo: ChangedServerInfo;
+  changedInfo: ModifiedServerInfo;
 };
 
 export async function run(
@@ -73,21 +72,53 @@ export async function run(
     throw fetchResult.error;
   }
 
-  if (state.messageId.length === 0 || !oldServerInfo) {
-    await initializeMonitor(fetchResult.info, config["channel-id"], time, traceId);
+  if (state.messageId.length == 0) {
+    await initializeMonitor(
+      fetchResult.isAvailable,
+      fetchResult.info,
+      config["channel-id"],
+      time,
+      traceId,
+    );
+
+    if (fetchResult.isAvailable) {
+      writeJsonFile(SERVER_INFO_PATH, fetchResult.info);
+    }
+
+    return context;
+  }
+
+  if (!fetchResult.isAvailable) {
+    if (!state.isUnavailabilityReported) {
+      const payload = buildMainPayload(fetchResult.info, time);
+      await editMessage(payload, config["channel-id"], state.messageId);
+
+      state.isUnavailabilityReported = true;
+      writeJsonFile(MONITOR_STATE_PATH, state);
+    }
+
+    return context;
+  }
+
+  if (!oldServerInfo) {
+    const payload = buildMainPayload(fetchResult.info, time);
+    await editMessage(payload, config["channel-id"], state.messageId);
+
+    writeJsonFile(SERVER_INFO_PATH, fetchResult.info);
+
+    state.isUnavailabilityReported = false;
+    writeJsonFile(MONITOR_STATE_PATH, state);
+
     return context;
   }
 
   const comparisonResult = compareServerInfo(fetchResult.info, oldServerInfo);
 
-  if (!comparisonResult.hasChanges) {
+  if (!comparisonResult.hasChanges && !state.isUnavailabilityReported) {
     return context;
   }
 
-  debug(LOG_NAME, `Server info changed: ${JSON.stringify(comparisonResult.changedInfo)}`, traceId);
-
   await reportUpdate(
-    fetchResult.isUnavailable,
     fetchResult.info,
     comparisonResult.changedInfo,
     config["channel-id"],
@@ -95,7 +126,8 @@ export async function run(
     time,
     traceId,
   );
-  persistServerInfo(fetchResult.isUnavailable, fetchResult.info);
+
+  writeJsonFile(SERVER_INFO_PATH, fetchResult.info);
 
   return context;
 }
@@ -147,12 +179,13 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
       const jsonInfo = JSON.parse(textInfo);
 
       socket.destroy();
+
       res({
         success: true,
-        isUnavailable: false,
+        isAvailable: true,
         info: {
           motd: jsonInfo.description,
-          icon: jsonInfo.favicon?.slice(",")[1] ?? DEFAULT_SERVER_ICON,
+          icon: jsonInfo.favicon?.split(",")[1] ?? DEFAULT_SERVER_ICON,
           version: jsonInfo.version.name,
           protocol: jsonInfo.version.protocol,
           online: jsonInfo.players.online,
@@ -166,7 +199,7 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
 
       res({
         success: true,
-        isUnavailable: true,
+        isAvailable: false,
         info: OFFLINE_SERVER_DATA,
       });
     });
@@ -176,7 +209,6 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
 
       const networkError = classifyNetworkError(error);
 
-      // Check errors
       if (networkError instanceof DnsError) {
         res({
           success: false,
@@ -187,7 +219,7 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
 
       res({
         success: true,
-        isUnavailable: true,
+        isAvailable: false,
         info: OFFLINE_SERVER_DATA,
       });
     });
@@ -195,6 +227,7 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
 }
 
 async function initializeMonitor(
+  isAvailable: boolean,
   serverInfo: ServerInfo,
   channelId: string,
   time: Date,
@@ -203,18 +236,17 @@ async function initializeMonitor(
   const payload = buildMainPayload(serverInfo, time);
   const message = await sendMessage(channelId, payload);
 
-  writeJsonFile(SERVER_INFO_PATH, serverInfo);
-
+  state.isUnavailabilityReported = !isAvailable;
   state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  info(LOG_NAME, "Initialized.", traceId);
+  debug(LOG_NAME, "Initialized.", traceId);
 }
 
 function compareServerInfo(newServerInfo: ServerInfo, oldServerInfo: ServerInfo): ComparisonResult {
-  const changedInfo: ChangedServerInfo = {};
+  const changedInfo: ModifiedServerInfo = {};
 
-  for (const key of Object.keys(newServerInfo) as ServerInfoField[]) {
+  for (const key of Object.keys(newServerInfo) as (keyof ServerInfo)[]) {
     const oldValue = oldServerInfo[key];
     const newValue = newServerInfo[key];
 
@@ -223,10 +255,10 @@ function compareServerInfo(newServerInfo: ServerInfo, oldServerInfo: ServerInfo)
     }
 
     // Tried my best to suppress it because it is obvious what it complains about is impossible.
-    (changedInfo as Record<keyof ServerInfo, ChangedServerInfo>)[key] = {
+    (changedInfo as Record<keyof ServerInfo, ModifiedServerInfo>)[key] = {
       new: newValue,
       old: oldValue,
-    } as ChangedServerInfo;
+    } as ModifiedServerInfo;
   }
 
   return {
@@ -236,40 +268,36 @@ function compareServerInfo(newServerInfo: ServerInfo, oldServerInfo: ServerInfo)
 }
 
 async function reportUpdate(
-  isUnavailable: boolean,
   serverInfo: ServerInfo,
-  changedServerInfo: ChangedServerInfo,
+  changedServerInfo: ModifiedServerInfo,
   channelId: string,
   messageId: string,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(serverInfo, time);
-  await editMessage(mainPayload, channelId, messageId);
+  const payload = buildMainPayload(serverInfo, time);
+  await editMessage(payload, channelId, messageId);
 
-  if (isUnavailable) {
-    return;
+  if (state.isUnavailabilityReported) {
+    state.isUnavailabilityReported = false;
+    writeJsonFile(MONITOR_STATE_PATH, state);
   }
 
   for (const [key, values] of Object.entries(changedServerInfo)) {
-    if (["online"].includes(key)) {
+    if (key === "online") {
       continue;
     }
 
-    const updatePayload = buildUpdatePayload(key as ServerInfoField, values.new, values.old, time);
+    const updatePayload = buildUpdatePayload(key as keyof ServerInfo, values.new, values.old, time);
     await sendMessage(channelId, updatePayload);
 
     info(LOG_NAME, `${key} updated. ${values.old} -> ${values.new}`, traceId);
   }
 }
 
-function persistServerInfo(isUnavailable: boolean, serverInfo: ServerInfo): void {
-  if (isUnavailable) {
-    return;
-  }
-
-  writeJsonFile(SERVER_INFO_PATH, serverInfo);
-}
+// =======================
+// PACKET HANDLING HELPERS
+// =======================
 
 function encodeVarInt(value: number): Buffer {
   const out = [];
@@ -308,7 +336,7 @@ function decodeVarInt(buffer: Buffer, offset: number): { value: number; offset: 
     }
 
     const byte = buffer[offset++];
-    if (byte === undefined) {
+    if (byte == null) {
       return { value: NaN, offset: 0 };
     }
 
@@ -321,7 +349,7 @@ function decodeVarInt(buffer: Buffer, offset: number): { value: number; offset: 
     position += 7;
 
     if (position > 32) {
-      throw new ValidationError("VarInt is too big.", "ERR_VARINT_TOO_BIG");
+      throw new ValidationError("VarInt is too big.");
     }
   }
 

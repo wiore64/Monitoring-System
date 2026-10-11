@@ -1,4 +1,4 @@
-const DNS_ERROR_CODES = new Set(["EAI_AGAIN", "ENOTFOUND"]);
+const DNS_ERROR_CODES = new Set(["EAI_AGAIN", "ENOTFOUND", "EHOSTUNREACH"]);
 
 const TIMEOUT_ERROR_CODES = new Set([
   "ETIMEDOUT",
@@ -76,6 +76,10 @@ export function classifyNetworkError(error: Error): Error {
   }
 
   return error;
+}
+
+export function isDnsError(error: Error): boolean {
+  return error instanceof DnsError;
 }
 
 export function toError(thing: unknown): Error | undefined {

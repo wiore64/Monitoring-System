@@ -14,27 +14,12 @@ export function buildMainPayload(isWebsiteAvailable: boolean, timestamp: string)
   return { embeds: [embed] };
 }
 
-export function buildWebsiteReturnPayload(duration: string, time: Date): Payload {
-  const embed = new EmbedBuilder()
-    .setColor(Number(config.update.return.color))
-    .setTitle(config.update.return.title)
-    .setDescription(
-      formatContent(config.update.return.description, {
-        DURATION: duration,
-        TIMESTAMP: time.toUTCString(),
-      }),
-    );
-
-  return { embeds: [embed] };
-}
-
-export function buildWebsiteAvailablePayload(duration: string, time: Date): Payload {
+export function buildWebsiteAvailablePayload(time: Date): Payload {
   const embed = new EmbedBuilder()
     .setColor(Number(config.update.available.color))
     .setTitle(config.update.available.title)
     .setDescription(
       formatContent(config.update.available.description, {
-        DURATION: duration,
         TIMESTAMP: time.toUTCString(),
       }),
     );
@@ -42,13 +27,12 @@ export function buildWebsiteAvailablePayload(duration: string, time: Date): Payl
   return { embeds: [embed] };
 }
 
-export function buildWebsiteUnavailablePayload(duration: string, time: Date): Payload {
+export function buildWebsiteUnavailablePayload(time: Date): Payload {
   const embed = new EmbedBuilder()
     .setColor(Number(config.update.unavailable.color))
     .setTitle(config.update.unavailable.title)
     .setDescription(
       formatContent(config.update.unavailable.description, {
-        DURATION: duration,
         TIMESTAMP: time.toUTCString(),
       }),
     );

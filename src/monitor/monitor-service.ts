@@ -36,26 +36,24 @@ import {
 
 const LOG_NAME = "Monitor Service";
 
-export const MonitorType = {
-  BlackfileIndex: "blackfile-index",
-  FilianislostWebsite: "filianislost/website",
-  MinecraftInfo: "minecraft-info",
-  MinecraftState: "minecraft-state",
-  TwitterFilian: "twitter-filian",
-  TwitterWall: "twitter-wall",
-  Trademark: "trademarks",
-  YoutubeFilian: "youtube-filian",
-} as const;
-
-export type MonitorType = (typeof MonitorType)[keyof typeof MonitorType];
+export enum MonitorType {
+  BlackfileIndex = "blackfile-index",
+  FilianislostWebsite = "filianislost/website",
+  MinecraftInfo = "minecraft-info",
+  MinecraftState = "minecraft-state",
+  TwitterFilian = "twitter-filian",
+  FilianislostTwitter = "twitter-wall",
+  Trademark = "trademarks",
+  YoutubeFilian = "youtube-filian",
+}
 
 type MonitorContext = {
   [MonitorType.BlackfileIndex]: BlackfileIndexContext;
   [MonitorType.FilianislostWebsite]: FilianislostContext;
+  [MonitorType.FilianislostTwitter]: TwitterWallContext;
   [MonitorType.MinecraftInfo]: MinecraftInfoContext;
   [MonitorType.MinecraftState]: MinecraftStateContext;
   [MonitorType.TwitterFilian]: TwitterFilianContext;
-  [MonitorType.TwitterWall]: TwitterWallContext;
   [MonitorType.Trademark]: TrademarkContext;
   [MonitorType.YoutubeFilian]: YoutubeFilianContext;
 };
@@ -66,18 +64,7 @@ type MonitorExecutor<T extends MonitorType> = (
   traceId: string,
 ) => Promise<MonitorContext[T]>;
 
-type ServiceResult = { success: true } | { success: false; reason: string };
-
-export const MONITOR_PATHS: Record<MonitorType, string> = {
-  [MonitorType.BlackfileIndex]: "./list/blackfile-index/monitor.js",
-  [MonitorType.FilianislostWebsite]: "./list/filianislost/website/monitor.js",
-  [MonitorType.MinecraftInfo]: "./list/minecraft/info/monitor.js",
-  [MonitorType.MinecraftState]: "./list/minecraft/state/monitor.js",
-  [MonitorType.TwitterFilian]: "./list/socials/twitter/monitor.js",
-  [MonitorType.TwitterWall]: "./list/filianislost/twitter/monitor.js",
-  [MonitorType.Trademark]: "./list/other/trademarks/monitor.js",
-  [MonitorType.YoutubeFilian]: "./list/socials/youtube/monitor.js",
-} as const;
+export type ServiceResult = { success: true } | { success: false; reason: string };
 
 const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.BlackfileIndex]: runBlackfileIndex,
@@ -85,7 +72,7 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.MinecraftInfo]: runMinecraftInfo,
   [MonitorType.MinecraftState]: runMinecraftState,
   [MonitorType.TwitterFilian]: runTwitterFilian,
-  [MonitorType.TwitterWall]: runTwitterWall,
+  [MonitorType.FilianislostTwitter]: runTwitterWall,
   [MonitorType.Trademark]: runTrademarks,
   [MonitorType.YoutubeFilian]: runYoutubeFilian,
 };
@@ -93,8 +80,6 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
 const runningMonitors = new Set<MonitorType>();
 const monitorIntervals = new Map<MonitorType, NodeJS.Timeout>();
 const monitorContexts = new Map<MonitorType, object>();
-
-let isNetworkOutageActive = false;
 
 export function startMonitorInterval<T extends MonitorType>(
   monitorType: T,
@@ -104,7 +89,7 @@ export function startMonitorInterval<T extends MonitorType>(
   if (monitorIntervals.has(monitorType)) {
     return {
       success: false,
-      reason: `Monitor ${monitorType} already has an active interval`,
+      reason: `Monitor ${monitorType} already has active interval`,
     };
   }
 
@@ -114,95 +99,103 @@ export function startMonitorInterval<T extends MonitorType>(
   return { success: true };
 }
 
-export function stopMonitorInterval(monitorType: MonitorType): ServiceResult {
-  const interval = monitorIntervals.get(monitorType);
-
-  if (!interval) {
-    return {
-      success: false,
-      reason: `Monitor ${monitorType} does not have an active interval`,
-    };
-  }
-
-  clearInterval(interval);
-  monitorIntervals.delete(monitorType);
-
-  monitorContexts.delete(monitorType);
-
-  return { success: true };
-}
-
 export async function runMonitor<T extends MonitorType>(
-  monitorType: T,
+  monitor: T,
   initialContext: MonitorContext[T],
   time: Date = new Date(),
   traceId: string = generateTraceId(),
 ): Promise<ServiceResult> {
-  if (runningMonitors.has(monitorType)) {
-    return { success: false, reason: `Monitor ${monitorType} is already running` };
+  if (runningMonitors.has(monitor)) {
+    return { success: false, reason: `Monitor ${monitor} already running` };
   }
 
-  const executor = MONITOR_REGISTRY[monitorType];
+  const executor = MONITOR_REGISTRY[monitor];
 
   if (!executor) {
-    throw new TypeError(`Monitor ${monitorType} is not registered`);
+    throw new TypeError(`Monitor ${monitor} not registered`);
   }
 
-  runningMonitors.add(monitorType);
+  runningMonitors.add(monitor);
 
   try {
-    const context = monitorContexts.get(monitorType) ?? initialContext;
+    const context = structuredClone(monitorContexts.get(monitor) ?? initialContext);
     const newContext = await executor(context as MonitorContext[T], time, traceId);
 
-    monitorContexts.set(monitorType, newContext);
-    updateNetworkOutageState(monitorType, false, traceId);
+    monitorContexts.set(monitor, newContext);
+    processSuccess(monitor, traceId);
 
     return { success: true };
   } catch (cause: unknown) {
     if (!(cause instanceof Error)) {
-      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`, "NON_ERROR");
+      throw new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`);
     }
 
-    warn(
-      LOG_NAME,
-      `Failed to run ${monitorType} (${getCode(cause) ?? cause.name}): ${cause.message}.\n\n${cause.stack ?? "No stack trace provided."}`,
-      traceId,
-    );
-
-    updateNetworkOutageState(monitorType, cause instanceof DnsError, traceId);
+    processError(monitor, cause, traceId);
 
     return {
       success: false,
       reason: cause.message,
     };
   } finally {
-    runningMonitors.delete(monitorType);
+    runningMonitors.delete(monitor);
   }
 }
 
-function updateNetworkOutageState(
-  monitorType: MonitorType,
-  isNetworkOutage: boolean,
-  traceId: string,
-): void {
-  if (isNetworkOutage === isNetworkOutageActive) {
-    return;
+// ========================
+// OUTAGE MANAGEMENT SYSTEM
+// ========================
+
+const outageErrorThreshold = 3;
+let outageErrorCount = 0;
+let isOutageActive = false;
+
+function processSuccess(monitor: MonitorType, traceId: string) {
+  if (outageErrorCount > 0) {
+    outageErrorCount--;
   }
 
-  isNetworkOutageActive = isNetworkOutage;
+  if (isOutageActive && outageErrorCount == 0) {
+    isOutageActive = false;
 
-  if (isNetworkOutage) {
-    severe(
+    info(
       LOG_NAME,
-      `Network outage detected, according to ${monitorType}. Future DNS errors will be suppressed.`,
+      `Network outage resolved, according to ${monitor}. Future DNS errors are now resumed.`,
+      traceId,
+    );
+  }
+}
+
+function processError(monitor: MonitorType, error: Error, traceId: string) {
+  if (!(error instanceof DnsError)) {
+    warn(
+      LOG_NAME,
+      `Failed to run ${monitor} (${getCode(error) ?? error.name}): ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
       traceId,
     );
     return;
   }
 
-  info(
+  if (isOutageActive) {
+    return;
+  }
+
+  outageErrorCount++;
+
+  warn(
     LOG_NAME,
-    `Network outage resolved, according to ${monitorType}. Future DNS errors are now resumed.`,
+    `Failed to run ${monitor} (${getCode(error) ?? error.name}): ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
+    traceId,
+  );
+
+  if (outageErrorCount < outageErrorThreshold) {
+    return;
+  }
+
+  isOutageActive = true;
+
+  severe(
+    LOG_NAME,
+    `Network outage detected, according to ${monitor}. Future DNS errors will be suppressed.`,
     traceId,
   );
 }
