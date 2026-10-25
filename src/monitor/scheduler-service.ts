@@ -23,14 +23,19 @@ export function initialize(traceId: string = generateTraceId()): void {
     if (
       monitor === MonitorType.BlackfileIndex ||
       monitor === MonitorType.MinecraftInfo ||
-      monitor === MonitorType.Trademark
+      monitor === MonitorType.Trademark ||
+      monitor === MonitorType.Reddit
     ) {
       const result = initiateMonitor(monitor);
 
       if (!result.success) {
         severe(LOG_NAME, `Failed to schedule ${monitor}: ${result.reason}`, traceId);
       } else {
-        debug(LOG_NAME, `Successfully scheduled: ${monitor}`, traceId);
+        debug(
+          LOG_NAME,
+          `Successfully scheduled: ${monitor} every ${config[monitor].interval}ms`,
+          traceId,
+        );
       }
     }
   }

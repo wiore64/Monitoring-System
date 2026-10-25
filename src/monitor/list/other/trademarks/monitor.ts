@@ -8,57 +8,59 @@ import { fetchUrl } from "#utils/network.js";
 
 import { buildUpdatePayload } from "./payload-builder.js";
 
-const LOG_NAME = "other/trademarks";
+const LOG_NAME = "monitors/other/trademarks";
 const MONITOR_STATE_PATH = "./data/other/trademarks/monitor-state.json";
 const TRADEMARKS_INFO_PATH = "./data/other/trademarks/trademarks-info.json";
 
-const TRADEMARK_FILIAN_URL =
-  "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557803";
-const TRADEMARK_VSOCCER_URL =
-  "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557814";
-const TRADEMARK_VTUBER_AWARDS_URL =
-  "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99750600";
+const TRADEMARKS = {
+  filian: {
+    name: "Filian",
+    link: "https://www.trademarkia.com/api/mark-status?serialNumber=99557803&variant=renewal",
+  },
+  vsoccer: {
+    name: "VSoccer",
+    link: "https://www.trademarkia.com/api/mark-status?serialNumber=99557814&variant=renewal",
+  },
+  vtuberAwards: {
+    name: "The Vtuber Awards",
+    link: "https://www.trademarkia.com/api/mark-status?serialNumber=99750600&variant=renewal",
+  },
+};
 
 export type MonitorContext = {
   timeoutMs: number;
 };
 
 type TrademarkResponseData = {
-  metadata: {
-    tm5Status: {
-      tm5StatusDescriptor: string;
+  body: {
+    data: {
+      trademark_prosecution_history: {
+        description_text: string;
+        date: number;
+      }[];
     };
   };
-  prosecutionHistory: {
-    historyDate: string;
-    historyDescription: string;
-  }[];
 };
 
 export type TrademarkInfo = {
   status: string;
-  description: string;
   date: string;
 };
 
 type TrademarksInfo = {
-  Filian: TrademarkInfo;
-  Vsoccer: TrademarkInfo;
-  "Vtuber Awards": TrademarkInfo;
+  [T in keyof typeof TRADEMARKS]: TrademarkInfo;
 };
 
-export type TrademarkType = keyof TrademarksInfo;
-
-type ChangedTrademarksInfo = {
-  [T in TrademarkType]?: {
+type UpdatedTrademarksInfo = {
+  [T in keyof TrademarksInfo]?: {
     new: TrademarkInfo;
     old: TrademarkInfo;
   };
 };
 
 type ComparisonResult = {
-  hasChanges: boolean;
-  changedTrademarksInfo: ChangedTrademarksInfo;
+  hasUpdates: boolean;
+  updatedInfo: UpdatedTrademarksInfo;
 };
 
 export async function run(
@@ -70,104 +72,100 @@ export async function run(
   const newTrademarksInfo = await fetchTrademarksInfo(context.timeoutMs);
 
   if (!state.isInitialized || !oldTrademarksInfo) {
-    await initializeMonitor(newTrademarksInfo, traceId);
+    initializeMonitor(newTrademarksInfo, traceId);
     return context;
   }
 
   const result = compareTrademarksInfo(newTrademarksInfo, oldTrademarksInfo);
 
-  if (!result.hasChanges) {
+  if (!result.hasUpdates) {
     return context;
   }
 
-  debug(
-    LOG_NAME,
-    `Trademarks info changed: ${JSON.stringify(result.changedTrademarksInfo)}`,
-    traceId,
-  );
-
-  await reportChanges(result.changedTrademarksInfo, config["channel-id"], traceId);
+  await reportChanges(result.updatedInfo, config["channel-id"], traceId);
   writeJsonFile(TRADEMARKS_INFO_PATH, newTrademarksInfo);
 
   return context;
 }
 
 async function fetchTrademarksInfo(timeoutMs: number): Promise<TrademarksInfo> {
-  const [filianTrademark, vsoccerTrademark, vtuberAwardsTrademark] = await Promise.all([
-    fetchTrademarkInfo(TRADEMARK_FILIAN_URL, timeoutMs),
-    fetchTrademarkInfo(TRADEMARK_VSOCCER_URL, timeoutMs),
-    fetchTrademarkInfo(TRADEMARK_VTUBER_AWARDS_URL, timeoutMs),
+  const [filian, vsoccer, vtuberAwards] = await Promise.all([
+    fetchTrademarkInfo(TRADEMARKS.filian.name, TRADEMARKS.filian.link, timeoutMs),
+    fetchTrademarkInfo(TRADEMARKS.vsoccer.name, TRADEMARKS.vsoccer.link, timeoutMs),
+    fetchTrademarkInfo(TRADEMARKS.vtuberAwards.name, TRADEMARKS.vtuberAwards.link, timeoutMs),
   ]);
 
-  return {
-    Filian: filianTrademark,
-    Vsoccer: vsoccerTrademark,
-    "Vtuber Awards": vtuberAwardsTrademark,
-  };
+  return { filian, vsoccer, vtuberAwards };
 }
 
-async function fetchTrademarkInfo(url: string, timeoutMs: number): Promise<TrademarkInfo> {
+async function fetchTrademarkInfo(
+  name: string,
+  url: string,
+  timeoutMs: number,
+): Promise<TrademarkInfo> {
   const response = await fetchUrl(url, timeoutMs);
 
   if (!response.success) {
     throw response.error;
   }
 
-  const data = (await response.data.json()) as TrademarkResponseData;
+  const latestEntry = ((await response.data.json()) as TrademarkResponseData).body.data
+    .trademark_prosecution_history[0];
 
-  if (!data.metadata || !data.prosecutionHistory || !data.prosecutionHistory[0]) {
-    throw new ValidationError(
-      `Invalid trademark response data: ${JSON.stringify(data)}`,
-      "ERR_INVALID_TRADEMARK_RESPONSE_DATA",
-    );
+  if (!latestEntry || !latestEntry.description_text || !latestEntry.date) {
+    throw new ValidationError(`Invalid latest entry for ${name}: ${JSON.stringify(latestEntry)}`);
   }
 
+  const entryTimestamp = new Date(latestEntry.date * 1000);
+
   return {
-    status: data.metadata.tm5Status.tm5StatusDescriptor,
-    description: data.prosecutionHistory[0].historyDescription,
-    date: data.prosecutionHistory[0].historyDate,
+    status: latestEntry.description_text,
+    date: `${entryTimestamp.getUTCFullYear()}-${entryTimestamp.getUTCMonth()}-${entryTimestamp.getUTCDate()}`,
   };
 }
 
-async function initializeMonitor(trademarksInfo: TrademarksInfo, traceId: string): Promise<void> {
+function initializeMonitor(trademarksInfo: TrademarksInfo, traceId: string): void {
   writeJsonFile(TRADEMARKS_INFO_PATH, trademarksInfo);
 
   state.isInitialized = true;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  info(LOG_NAME, "Initialized.", traceId);
+  debug(LOG_NAME, "Initialized.", traceId);
 }
 
 function compareTrademarksInfo(newInfo: TrademarksInfo, oldInfo: TrademarksInfo): ComparisonResult {
-  const changedTrademarksInfo: ChangedTrademarksInfo = {};
+  const updatedInfo: UpdatedTrademarksInfo = {};
 
-  for (const trademarkName of Object.keys(newInfo) as TrademarkType[]) {
+  for (const trademarkName of Object.keys(newInfo) as (keyof TrademarksInfo)[]) {
     const newTrademark = newInfo[trademarkName];
     const oldTrademark = oldInfo[trademarkName];
 
-    if (newTrademark.date === oldTrademark.date) {
+    if (newTrademark.date === oldTrademark?.date) {
       continue;
     }
 
-    changedTrademarksInfo[trademarkName] = {
+    updatedInfo[trademarkName] = {
       new: newTrademark,
       old: oldTrademark,
     };
   }
 
   return {
-    hasChanges: Object.keys(changedTrademarksInfo).length > 0,
-    changedTrademarksInfo,
+    hasUpdates: Object.keys(updatedInfo).length > 0,
+    updatedInfo,
   };
 }
 
 async function reportChanges(
-  changedTrademarksInfos: ChangedTrademarksInfo,
+  updatedInfo: UpdatedTrademarksInfo,
   channelId: string,
   traceId: string,
 ): Promise<void> {
-  for (const [trademarkName, trademarkInfo] of Object.entries(changedTrademarksInfos)) {
-    const payload = buildUpdatePayload(trademarkName as TrademarkType, trademarkInfo.new);
+  for (const [trademarkName, trademarkInfo] of Object.entries(updatedInfo)) {
+    const payload = buildUpdatePayload(
+      TRADEMARKS[trademarkName as keyof TrademarksInfo].name,
+      trademarkInfo.new,
+    );
     await sendMessage(channelId, payload);
 
     info(

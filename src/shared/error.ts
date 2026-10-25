@@ -1,4 +1,4 @@
-const DNS_ERROR_CODES = new Set(["EAI_AGAIN", "ENOTFOUND", "EHOSTUNREACH"]);
+const DNS_ERROR_CODES = new Set(["EAI_AGAIN" /*, "ENOTFOUND" */, "EHOSTUNREACH"]);
 
 const TIMEOUT_ERROR_CODES = new Set([
   "ETIMEDOUT",
@@ -9,9 +9,9 @@ const TIMEOUT_ERROR_CODES = new Set([
 
 export class ValidationError extends Error {
   constructor(
-    message: string,
+    readonly message: string,
     readonly code?: string,
-    cause?: Error,
+    readonly cause?: Error,
   ) {
     super(message, { cause });
     this.name = "ValidationError";
@@ -20,9 +20,9 @@ export class ValidationError extends Error {
 
 abstract class NetworkError extends Error {
   protected constructor(
-    message: string,
+    readonly message: string,
     readonly code: string,
-    cause?: Error,
+    readonly cause?: Error,
   ) {
     super(message, { cause });
     this.name = "NetworkError";
@@ -55,7 +55,7 @@ export function classifyNetworkError(error: Error): Error {
     return error;
   }
 
-  let currentError = error;
+  let currentError: Error | undefined = error;
 
   while (currentError) {
     const code = getCode(currentError) ?? "";
@@ -68,11 +68,7 @@ export function classifyNetworkError(error: Error): Error {
       return new TimeoutError(currentError.message, code, error);
     }
 
-    const cause = getCause(error);
-
-    if (cause) {
-      currentError = cause;
-    }
+    currentError = getCause(currentError);
   }
 
   return error;

@@ -3,12 +3,9 @@ import { EmbedBuilder } from "discord.js";
 import config from "#data/other/trademarks/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
-import { type TrademarkInfo, type TrademarkType } from "./monitor.js";
+import { type TrademarkInfo } from "./monitor.js";
 
-export function buildUpdatePayload(
-  trademarkName: TrademarkType,
-  trademarkInfo: TrademarkInfo,
-): Payload {
+export function buildUpdatePayload(trademarkName: string, trademarkInfo: TrademarkInfo): Payload {
   const embed = new EmbedBuilder()
     .setColor(Number(config.update.color))
     .setTitle(config.update.title)
@@ -16,7 +13,6 @@ export function buildUpdatePayload(
       formatContent(config.update.description, {
         NAME: trademarkName,
         STATUS: trademarkInfo.status,
-        DESCRIPTION: trademarkInfo.description,
         DATE: trademarkInfo.date,
       }),
     );

@@ -3,9 +3,14 @@ import { toError, classifyNetworkError, ValidationError, HttpError } from "#shar
 type FetchUrlResult =
   { success: true; data: Response } | { success: false; data?: Response; error: Error };
 
-export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrlResult> {
+export async function fetchUrl(
+  url: string,
+  timeoutMs: number,
+  options?: RequestInit,
+): Promise<FetchUrlResult> {
   try {
     const response = await fetch(url, {
+      ...options,
       signal: AbortSignal.timeout(timeoutMs),
     });
 
@@ -13,10 +18,7 @@ export async function fetchUrl(url: string, timeoutMs: number): Promise<FetchUrl
       return {
         success: false,
         data: response,
-        error: new HttpError(
-          "Failed to fetch a response.",
-          `${response.status} ${response.statusText}`,
-        ),
+        error: new HttpError("Failed to fetch a response.", `${response.status}`),
       };
     }
 

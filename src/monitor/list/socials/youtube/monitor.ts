@@ -1,4 +1,4 @@
-import { config as globalConfig } from "#root/config.js";
+import { CONFIG as globalConfig } from "#root/config.js";
 import config from "#data/socials/youtube/monitor-config.json" with { type: "json" };
 import { HttpError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";

@@ -1,19 +1,9 @@
-import {
-  DiscordAPIError,
-  HTTPError,
-  Message,
-  type AttachmentBuilder,
-  type EmbedBuilder,
-} from "discord.js";
+import { DiscordAPIError, HTTPError, Message, type BaseMessageOptions } from "discord.js";
 
 import { client } from "#root/bootstrap.js";
 import { toError, classifyNetworkError, ValidationError, HttpError } from "#shared/error.js";
 
-export type Payload = {
-  content?: string;
-  embeds?: EmbedBuilder[];
-  files?: AttachmentBuilder[];
-};
+export type Payload = BaseMessageOptions;
 
 export async function sendMessage(channelId: string, payload: Payload): Promise<Message> {
   try {
@@ -72,7 +62,9 @@ export async function editMessage(
       throw new ValidationError(`Message not found: ${messageId}`);
     }
 
-    return await message.edit(payload);
+    return await message.edit({
+      components: [],
+    });
   } catch (cause: unknown) {
     const error = toError(cause);
 

@@ -1,8 +1,8 @@
 import config from "#data/blackfile-index/monitor-config.json" with { type: "json" };
 import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
-import { getCode, isDnsError } from "#shared/error.js";
+import { isDnsError, ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
-import { debug, info, warn } from "#utils/logger.js";
+import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 import { fetchUrl } from "#utils/network.js";
 
@@ -12,8 +12,7 @@ import {
   buildWebsiteUnavailablePayload,
 } from "./payload-builder.js";
 
-const LOG_NAME = "monitor/blackfile-index";
-
+const LOG_NAME = "monitors/blackfile-index";
 const MONITOR_STATE_PATH = "./data/blackfile-index/monitor-state.json";
 const WEBSITE_STATE_PATH = "./data/blackfile-index/website-state.json";
 const WEBSITE_URL = "https://blackfile-index.org";
@@ -31,27 +30,29 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const oldWebsiteState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
-  const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs);
+  const isWebsiteAvailableOld = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH)?.isAvailable;
+  const isWebsiteAvailableNew = await checkWebsiteAvailability(context.timeoutMs);
 
-  if (state.messageId.length == 0 || !oldWebsiteState) {
-    await initializeMonitor(isWebsiteAvailable, config["channel-id"], traceId);
+  if (state.messageId.length === 0 || isWebsiteAvailableOld == null) {
+    await initializeMonitor(isWebsiteAvailableNew, config["channel-id"], traceId);
     return context;
   }
 
-  if (isWebsiteAvailable == oldWebsiteState.isAvailable) {
+  if (isWebsiteAvailableNew === isWebsiteAvailableOld) {
     return context;
   }
 
   await reportUpdate(
-    isWebsiteAvailable,
-    oldWebsiteState,
+    isWebsiteAvailableNew,
+    isWebsiteAvailableOld,
     config["channel-id"],
     state.messageId,
     time,
     traceId,
   );
-  persistWebsiteStateUpdate(isWebsiteAvailable);
+  writeJsonFile(WEBSITE_STATE_PATH, {
+    isAvailable: isWebsiteAvailableNew,
+  });
 
   return context;
 }
@@ -63,7 +64,7 @@ async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
     return true;
   }
 
-  if (!isDnsError(response.error) || getCode(response.error) === "ENOTFOUND") {
+  if (!isDnsError(response.error)) {
     return false;
   }
 
@@ -78,7 +79,9 @@ async function initializeMonitor(
   const payload = buildMainPayload(isWebsiteAvailable, "N/A");
   const message = await sendMessage(channelId, payload);
 
-  persistWebsiteStateUpdate(isWebsiteAvailable);
+  writeJsonFile(WEBSITE_STATE_PATH, {
+    isAvailable: isWebsiteAvailable,
+  });
 
   state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
@@ -87,17 +90,17 @@ async function initializeMonitor(
 }
 
 async function reportUpdate(
-  isWebsiteAvailable: boolean,
-  oldWebsiteState: WebsiteState,
+  isWebsiteAvailableNew: boolean,
+  isWebsiteAvailableOld: boolean,
   channelId: string,
   messageId: string,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(isWebsiteAvailable, time.toUTCString());
+  const mainPayload = buildMainPayload(isWebsiteAvailableNew, time.toUTCString());
   await editMessage(mainPayload, channelId, messageId);
 
-  if (isWebsiteAvailable && !oldWebsiteState.isAvailable) {
+  if (isWebsiteAvailableNew && !isWebsiteAvailableOld) {
     const updatePayload = buildWebsiteAvailablePayload(time);
     await sendMessage(channelId, updatePayload);
 
@@ -105,7 +108,7 @@ async function reportUpdate(
     return;
   }
 
-  if (!isWebsiteAvailable && oldWebsiteState.isAvailable) {
+  if (!isWebsiteAvailableNew && isWebsiteAvailableOld) {
     const updatePayload = buildWebsiteUnavailablePayload(time);
     await sendMessage(channelId, updatePayload);
 
@@ -113,15 +116,7 @@ async function reportUpdate(
     return;
   }
 
-  warn(
-    LOG_NAME,
-    `Unexpected website state. Is website available? ${isWebsiteAvailable}. And according to the old state? ${oldWebsiteState.isAvailable}`,
-    traceId,
+  throw new ValidationError(
+    `Impossible state. New result: ${isWebsiteAvailableNew}; old result: ${isWebsiteAvailableOld}`,
   );
-}
-
-function persistWebsiteStateUpdate(isWebsiteAvailable: boolean): void {
-  writeJsonFile(WEBSITE_STATE_PATH, {
-    isAvailable: isWebsiteAvailable,
-  });
 }

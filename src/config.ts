@@ -1,6 +1,6 @@
 import { ValidationError } from "./shared/error.js";
 
-export const config = {
+export const CONFIG = {
   botToken: getEnvVar("BOT_TOKEN"),
   ytToken: getEnvVar("YT_TOKEN"),
   twitterAuth: {
@@ -8,13 +8,14 @@ export const config = {
     cookie: getEnvVar("TWITTER_COOKIE"),
     "x-csrf-token": getEnvVar("TWITTER_X_CSRF_TOKEN"),
   },
+  redditSessionId: getEnvVar("REDDIT_SESSION_ID"),
 } as const;
 
 function getEnvVar(key: string): string {
   const value = process.env[key];
 
   if (!value) {
-    throw new ValidationError(`Environment variable ${key} not found.`, "ENV_VAR_NOT_FOUND");
+    throw new ValidationError(`Environment variable ${key} not found.`);
   }
 
   return value;

@@ -33,6 +33,10 @@ import {
   type MonitorContext as YoutubeFilianContext,
   run as runYoutubeFilian,
 } from "./list/socials/youtube/monitor.js";
+import {
+  type MonitorContext as RedditContext,
+  run as runReddit,
+} from "./list/other/reddit/monitor.js";
 
 const LOG_NAME = "Monitor Service";
 
@@ -45,6 +49,7 @@ export enum MonitorType {
   FilianislostTwitter = "twitter-wall",
   Trademark = "trademarks",
   YoutubeFilian = "youtube-filian",
+  Reddit = "reddit",
 }
 
 type MonitorContext = {
@@ -56,6 +61,7 @@ type MonitorContext = {
   [MonitorType.TwitterFilian]: TwitterFilianContext;
   [MonitorType.Trademark]: TrademarkContext;
   [MonitorType.YoutubeFilian]: YoutubeFilianContext;
+  [MonitorType.Reddit]: RedditContext;
 };
 
 type MonitorExecutor<T extends MonitorType> = (
@@ -75,6 +81,7 @@ const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.FilianislostTwitter]: runTwitterWall,
   [MonitorType.Trademark]: runTrademarks,
   [MonitorType.YoutubeFilian]: runYoutubeFilian,
+  [MonitorType.Reddit]: runReddit,
 };
 
 const runningMonitors = new Set<MonitorType>();
