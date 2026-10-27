@@ -1,140 +1,113 @@
 import crypto from "node:crypto";
 
-import { CONFIG as globalConfig } from "#root/config.js";
+import { CONFIG as GLOBAL_CONFIG } from "#root/config.js";
 import config from "#data/filianislost/twitter/monitor-config.json" with { type: "json" };
-import { HttpError } from "#shared/error.js";
+import state from "#data/filianislost/twitter/monitor-state.json" with { type: "json" };
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
-import { info } from "#utils/logger.js";
+import { debug, info } from "#utils/logger.js";
 import { sendMessage } from "#utils/message.js";
+import { fetchUrl } from "#utils/network.js";
 
-import { buildUpdatePayload } from "./payload-builder.js";
+import { buildMainPayload, buildUpdatePayload, buildNewPostPayload } from "./payload-builder.js";
 
-const LOG_NAME = "twitter/wall";
+const LOG_NAME = "monitors/filianislost/twitter";
+const TWITTER_URL =
+  "https://x.com/i/api/graphql/hr4gzZONlq23okjU8fIe_A/UserTweets?variables=%7B%22userId%22%3A%222061261454637228032%22%2C%22count%22%3A20%2C%22includePromotedContent%22%3Afalse%2C%22withVoice%22%3Afalse%7D";
 const MONITOR_STATE_PATH = "./data/filianislost/twitter/monitor-state.json";
-const LATEST_POSTS_INFO_PATH = "./data/filianislost/twitter/latest-posts-info.json";
-
-type MonitorState = {
-  "is-initialized": boolean;
-};
+const TWITTER_FEED_PATH = "./data/filianislost/twitter/latest-posts-info.json";
 
 export type MonitorContext = {
-  "timeout-ms": number;
+  timeoutMs: number;
 };
 
-type LatestPost = {
+type TwitterPost = {
   content: string;
+  link: string;
+  timestamp: string;
   hash: string;
 };
 
-type LatestPosts = {
-  posts: LatestPost[];
-  hash: string;
+type TwitterFeed = {
+  posts: TwitterPost[];
+  totalHash: string;
 };
 
-type TwitterCredentials = {
-  auth: string;
-  cookie: string;
-  "x-csrf-token": string;
+export type TwitterAccount = {
+  name: string;
+  username: string;
+  description: string;
+  avatarLink: string;
+  feed: TwitterFeed;
 };
+
+type ComparisonResult =
+  | {
+      hasUpdates: true;
+      updates: {
+        new: Partial<TwitterAccount>;
+        old: Partial<TwitterAccount>;
+      };
+    }
+  | {
+      hasNewPosts: false;
+    };
 
 export async function run(
-  context: MonitorContext,
+  ctx: MonitorContext,
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
+  const previousState = readJsonFile<TwitterAccount>(TWITTER_FEED_PATH);
+  const latestState = await fetchLatestPosts(GLOBAL_CONFIG.twitterAuth, ctx.timeoutMs);
 
-  const oldLatestPosts = readJsonFile<LatestPosts>(LATEST_POSTS_INFO_PATH);
-  const newLatestPosts = await fetchLatestPosts(globalConfig.twitterAuth, context["timeout-ms"]);
-
-  if (!state["is-initialized"]) {
-    await initializeMonitor(state, newLatestPosts);
-    return context;
+  if (state.messageId.length === 0 || !previousState) {
+    await initializeMonitor(latestState, config["channel-id"], traceId);
+    return ctx;
   }
 
-  if (compareLatestPostsHashes(oldLatestPosts.hash, newLatestPosts.hash)) {
-    return context;
-  }
-
-  await handleUpdate(newLatestPosts, config["channel-id"], time, traceId);
-
-  return context;
+  return ctx;
 }
 
-async function fetchLatestPosts(
-  credentials: TwitterCredentials,
-  timeoutMs: number,
-): Promise<LatestPosts> {
-  const response = await fetch(
-    "https://x.com/i/api/graphql/hr4gzZONlq23okjU8fIe_A/UserTweets?variables=%7B%22userId%22%3A%222061261454637228032%22%2C%22count%22%3A20%2C%22includePromotedContent%22%3Afalse%2C%22withVoice%22%3Afalse%7D",
-    {
-      method: "GET",
-      headers: {
-        Authorization: credentials.auth,
-        "Content-Type": "application/json",
-        Cookie: credentials.cookie,
-        "User-Agent": "",
-        "X-Csrf-Token": credentials["x-csrf-token"],
-      },
-      signal: AbortSignal.timeout(timeoutMs),
+async function fetchLatestPosts(credentials: object, timeoutMs: number): Promise<TwitterAccount> {
+  const response = await fetchUrl(TWITTER_URL, timeoutMs, {
+    method: "GET",
+    headers: {
+      ...credentials,
+      "Content-Type": "application/json",
+      "User-Agent": "",
     },
-  );
+  });
 
-  if (!response.ok) {
-    throw new HttpError(
-      "Failed to fetch latest posts.",
-      `${response.status.toString()} ${response.statusText}`,
-    );
+  if (!response.success) {
+    throw response.error;
   }
 
-  const responseText = await response.text();
-  const postTexts = [...responseText.matchAll(/"full_text"\s*:\s*"((?:\\.|[^"\\])*)"/g)].map(
-    (match) => match[1]!,
-  );
-
-  if (Object.values(postTexts).length === 0) {
-    return {
-      posts: [],
-      hash: "",
-    };
-  }
-
-  const postContents: LatestPost[] = postTexts.map((text) => ({
-    content: text,
-    hash: crypto.createHash("sha256").update(text).digest("hex"),
-  }));
+  // ...
 
   return {
-    posts: postContents,
-    hash: crypto.createHash("sha256").update(postTexts.join("")).digest("hex"),
+    name: "",
+    username: "",
+    description: "",
+    avatarLink: "",
+    feed: {
+      posts: [],
+      totalHash: "",
+    },
   };
 }
 
-async function initializeMonitor(state: MonitorState, latestPosts: LatestPosts): Promise<void> {
-  state["is-initialized"] = true;
-  writeJsonFile(MONITOR_STATE_PATH, state);
-
-  updateLatestPosts(latestPosts);
-}
-
-function compareLatestPostsHashes(oldHash: string, newHash: string): boolean {
-  return oldHash === newHash;
-}
-
-async function handleUpdate(
-  latestPosts: LatestPosts,
+async function initializeMonitor(
+  latestState: TwitterAccount,
   channelId: string,
-  time: Date,
   traceId: string,
 ): Promise<void> {
-  const payload = buildUpdatePayload(time);
-  await sendMessage(channelId, payload);
+  const payload = buildMainPayload(latestState, "N/A");
+  const message = await sendMessage(channelId, payload);
 
-  updateLatestPosts(latestPosts);
+  writeJsonFile(TWITTER_FEED_PATH, latestState);
 
-  info(LOG_NAME, "New Tweet was observed.", traceId);
-}
+  state.messageId = message.id;
+  writeJsonFile(MONITOR_STATE_PATH, state);
 
-function updateLatestPosts(latestPosts: LatestPosts): void {
-  writeJsonFile(LATEST_POSTS_INFO_PATH, latestPosts);
+  debug(LOG_NAME, "Initialized.", traceId);
 }

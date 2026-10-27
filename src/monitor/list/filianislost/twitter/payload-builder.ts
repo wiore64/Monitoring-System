@@ -1,28 +1,17 @@
-import { EmbedBuilder } from "discord.js";
-
+import config from "#data/filianislost/twitter/payload-config.json" with { type: "json" };
 import { readJsonFile } from "#utils/file.js";
 import { formatContent, type Payload } from "#utils/message.js";
 
-const PAYLOAD_CONFIG_PATH = "./data/twitter/wall/payload-config.json";
+import { type TwitterAccount } from "./monitor.js";
 
-type PayloadConfig = {
-  color: string;
-  title: string;
-  description: string;
-};
+export function buildMainPayload(state: TwitterAccount, timestamp: string): Payload {
+  return {};
+}
 
-export function buildUpdatePayload(time: Date): Payload {
-  const config = readJsonFile<PayloadConfig>(PAYLOAD_CONFIG_PATH);
+export function buildUpdatePayload(): Payload {
+  return {};
+}
 
-  const embed = new EmbedBuilder()
-    .setColor(Number(config.color))
-    .setTitle(config.title)
-    .setDescription(
-      formatContent(config.description, {
-        TIMESTAMP: time.toUTCString(),
-      }),
-    )
-    .setTimestamp(time);
-
-  return { embeds: [embed] };
+export function buildNewPostPayload(): Payload {
+  return {};
 }

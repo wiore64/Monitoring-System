@@ -18,7 +18,7 @@ export async function fetchUrl(
       return {
         success: false,
         data: response,
-        error: new HttpError("Failed to fetch a response.", `${response.status}`),
+        error: new HttpError(`Failed to fetch a response from ${url}.`, `${response.status}`),
       };
     }
 
@@ -32,7 +32,9 @@ export async function fetchUrl(
     if (!error) {
       return {
         success: false,
-        error: new ValidationError(`Non-error thrown: ${JSON.stringify(cause)}`),
+        error: new ValidationError(
+          `Non-error thrown while fetching ${url}: ${JSON.stringify(cause)}`,
+        ),
       };
     }
 

@@ -75,3 +75,12 @@ function toDate(timestamp: Timestamp): Date {
 function toNumber(timestamp: Timestamp): number {
   return typeof timestamp === "number" ? timestamp : toDate(timestamp).getTime();
 }
+
+export function formatDate(date: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00Z`));
+}

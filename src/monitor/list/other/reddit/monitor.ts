@@ -7,7 +7,6 @@ import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { sendMessage } from "#utils/message.js";
 import { fetchUrl } from "#utils/network.js";
-import { ValidationError } from "#shared/error.js";
 
 import { buildNewPostPayload } from "./payload-builder.js";
 
@@ -83,7 +82,7 @@ export async function run(
   traceId: string,
 ): Promise<MonitorContext> {
   const previousFeeds = readJsonFile<RedditFeeds>(REDDIT_FEEDS_PATH);
-  const latestFeeds = await fetchRedditFeeds(GLOBAL_CONFIG.redditSessionId, ctx.timeoutMs);
+  const latestFeeds = await fetchRedditFeeds(GLOBAL_CONFIG.redditAuth, ctx.timeoutMs);
 
   if (!state.isInitialized || !previousFeeds) {
     initializeMonitor(latestFeeds, traceId);
@@ -102,10 +101,10 @@ export async function run(
   return ctx;
 }
 
-async function fetchRedditFeeds(credential: string, timeoutMs: number): Promise<RedditFeeds> {
+async function fetchRedditFeeds(credentials: object, timeoutMs: number): Promise<RedditFeeds> {
   const [filian, wall] = await Promise.all([
-    fetchRedditFeed(SUBREDDITS.filian.name, SUBREDDITS.filian.url, credential, timeoutMs),
-    fetchRedditFeed(SUBREDDITS.wall.name, SUBREDDITS.wall.url, credential, timeoutMs),
+    fetchRedditFeed(SUBREDDITS.filian.url, credentials, timeoutMs),
+    fetchRedditFeed(SUBREDDITS.wall.url, credentials, timeoutMs),
   ]);
 
   return {
@@ -115,19 +114,16 @@ async function fetchRedditFeeds(credential: string, timeoutMs: number): Promise<
 }
 
 async function fetchRedditFeed(
-  name: string,
   url: string,
-  credential: string,
+  credentials: object,
   timeoutMs: number,
 ): Promise<RedditFeed> {
   const response = await fetchUrl(url, timeoutMs, {
-    headers: {
-      Cookie: credential,
-    },
+    headers: credentials,
   });
 
   if (!response.success) {
-    throw new ValidationError(`Failed to fetch Reddit feed for ${name}`, undefined, response.error);
+    throw response.error;
   }
 
   const feedData = ((await response.data.json()) as RedditResponse).data;
@@ -148,12 +144,8 @@ async function fetchRedditFeed(
 
   return {
     posts,
-    totalHash: computeTotalHash(posts),
+    totalHash: posts.map((post) => post.hash).join(""),
   };
-}
-
-function computeTotalHash(posts: RedditPost[]): string {
-  return posts.map((post) => post.hash).join("");
 }
 
 function initializeMonitor(latestFeeds: RedditFeeds, traceId: string): void {
@@ -204,7 +196,7 @@ async function reportNewPosts(
       const payload = buildNewPostPayload(subredditName, post);
       await sendMessage(channelId, payload);
 
-      info(LOG_NAME, `New post posted on ${subredditName}: ${post}.`, traceId);
+      info(LOG_NAME, `New post posted on ${subredditName}: ${JSON.stringify(post)}.`, traceId);
     }
   }
 }

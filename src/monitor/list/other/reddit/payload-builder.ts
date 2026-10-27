@@ -6,8 +6,6 @@ import { type Payload } from "#utils/message.js";
 import { type RedditPost } from "./monitor.js";
 
 export function buildNewPostPayload(subredditName: string, post: RedditPost): Payload {
-  const timestamp = Math.floor(new Date(post.timestamp).getTime() / 1000);
-
   const embed = new EmbedBuilder()
     .setColor(Number(config.color))
     .setDescription(`🟠 **NEW REDDIT POST** · \`r/${subredditName}\`\n` + `## ${post.title}`)
@@ -19,7 +17,7 @@ export function buildNewPostPayload(subredditName: string, post: RedditPost): Pa
       },
       {
         name: "Posted",
-        value: `<t:${timestamp}:f>`,
+        value: new Date(`${Math.floor(new Date(post.timestamp).getTime() / 1000)}`).toUTCString(),
         inline: true,
       },
     )

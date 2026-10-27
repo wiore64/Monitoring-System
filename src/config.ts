@@ -4,11 +4,13 @@ export const CONFIG = {
   botToken: getEnvVar("BOT_TOKEN"),
   ytToken: getEnvVar("YT_TOKEN"),
   twitterAuth: {
-    auth: getEnvVar("TWITTER_AUTH"),
-    cookie: getEnvVar("TWITTER_COOKIE"),
-    "x-csrf-token": getEnvVar("TWITTER_X_CSRF_TOKEN"),
+    Authorization: getEnvVar("TWITTER_AUTH"),
+    Cookie: getEnvVar("TWITTER_COOKIE"),
+    "X-Csrf-Token": getEnvVar("TWITTER_X_CSRF_TOKEN"),
   },
-  redditSessionId: getEnvVar("REDDIT_SESSION_ID"),
+  redditAuth: {
+    Cookie: getEnvVar("REDDIT_SESSION_ID"),
+  },
 } as const;
 
 function getEnvVar(key: string): string {

@@ -45,18 +45,18 @@ export async function run(
   const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
 
   const oldLatestPosts = readJsonFile<LatestPosts>(LATEST_POSTS_INFO_PATH);
-  const newLatestPosts = await fetchLatestPosts(globalConfig.twitterAuth, context["timeout-ms"]);
+  // const newLatestPosts = await fetchLatestPosts(globalConfig.twitterAuth, context["timeout-ms"]);
 
-  if (!state["is-initialized"]) {
-    await initializeMonitor(state, newLatestPosts);
-    return context;
-  }
-
-  if (compareLatestPostsHashes(oldLatestPosts.hash, newLatestPosts.hash)) {
-    return context;
-  }
-
-  await handleUpdate(newLatestPosts, config["channel-id"], time, traceId);
+  //   if (!state["is-initialized"]) {
+  //     await initializeMonitor(state, newLatestPosts);
+  //     return context;
+  //   }
+  //
+  //   if (compareLatestPostsHashes(oldLatestPosts.hash, newLatestPosts.hash)) {
+  //     return context;
+  //   }
+  //
+  //   await handleUpdate(newLatestPosts, config["channel-id"], time, traceId);
 
   return context;
 }

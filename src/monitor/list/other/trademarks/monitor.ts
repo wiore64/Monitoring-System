@@ -15,15 +15,15 @@ const TRADEMARKS_INFO_PATH = "./data/other/trademarks/trademarks-info.json";
 const TRADEMARKS = {
   filian: {
     name: "Filian",
-    link: "https://www.trademarkia.com/api/mark-status?serialNumber=99557803&variant=renewal",
+    link: "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557803",
   },
   vsoccer: {
     name: "VSoccer",
-    link: "https://www.trademarkia.com/api/mark-status?serialNumber=99557814&variant=renewal",
+    link: "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557814",
   },
   vtuberAwards: {
     name: "The Vtuber Awards",
-    link: "https://www.trademarkia.com/api/mark-status?serialNumber=99750600&variant=renewal",
+    link: "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99750600",
   },
 };
 
@@ -32,14 +32,11 @@ export type MonitorContext = {
 };
 
 type TrademarkResponseData = {
-  body: {
-    data: {
-      trademark_prosecution_history: {
-        description_text: string;
-        date: number;
-      }[];
-    };
-  };
+  prosecutionHistory: {
+    historyDate: string;
+    proceedingNumber: number | string;
+    historyDescription: string;
+  }[];
 };
 
 export type TrademarkInfo = {
@@ -109,19 +106,29 @@ async function fetchTrademarkInfo(
     throw response.error;
   }
 
-  const latestEntry = ((await response.data.json()) as TrademarkResponseData).body.data
-    .trademark_prosecution_history[0];
+  const data = (await response.data.json()) as TrademarkResponseData;
 
-  if (!latestEntry || !latestEntry.description_text || !latestEntry.date) {
-    throw new ValidationError(`Invalid latest entry for ${name}: ${JSON.stringify(latestEntry)}`);
+  if (!data.prosecutionHistory) {
+    throw new ValidationError(`Invalid data for ${name}: ${JSON.stringify(data)}`);
   }
 
-  const entryTimestamp = new Date(latestEntry.date * 1000);
+  // Sorted from Newest to Oldest
+  for (const entry of data.prosecutionHistory) {
+    if (!entry.historyDate || !entry.historyDescription || entry.proceedingNumber == null) {
+      throw new ValidationError(`Incomplete entry for ${name}: ${JSON.stringify(entry)}`);
+    }
 
-  return {
-    status: latestEntry.description_text,
-    date: `${entryTimestamp.getUTCFullYear()}-${entryTimestamp.getUTCMonth()}-${entryTimestamp.getUTCDate()}`,
-  };
+    if (typeof entry.proceedingNumber === "string") {
+      continue;
+    }
+
+    return {
+      status: entry.historyDescription,
+      date: entry.historyDate,
+    };
+  }
+
+  throw new ValidationError(`No complete entries for ${name}: ${JSON.stringify(data)}`);
 }
 
 function initializeMonitor(trademarksInfo: TrademarksInfo, traceId: string): void {
