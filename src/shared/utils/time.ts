@@ -3,6 +3,23 @@ const DAY = 24 * 60 * 60;
 const HOUR = 60 * 60;
 const MINUTE = 60;
 
+const dateFormat = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const timestampFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "UTC",
+});
+
 type Timestamp = string | number | Date;
 
 export function formatDuration(duration: number): string {
@@ -77,10 +94,9 @@ function toNumber(timestamp: Timestamp): number {
 }
 
 export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00Z`));
+  return dateFormat.format(new Date(`${date}T00:00:00Z`));
+}
+
+export function formatTimestamp(timestamp: Timestamp) {
+  return timestampFormat.format(toDate(timestamp));
 }

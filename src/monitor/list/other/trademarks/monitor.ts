@@ -6,7 +6,7 @@ import { debug, info } from "#utils/logger.js";
 import { sendMessage } from "#utils/message.js";
 import { fetchUrl } from "#utils/network.js";
 
-import { buildUpdatePayload } from "./payload-builder.js";
+import { buildTrademarkUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "monitors/other/trademarks";
 const MONITOR_STATE_PATH = "./data/other/trademarks/monitor-state.json";
@@ -14,15 +14,15 @@ const TRADEMARKS_INFO_PATH = "./data/other/trademarks/trademarks-info.json";
 
 const TRADEMARKS = {
   filian: {
-    name: "Filian",
+    name: "FILIAN",
     link: "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557803",
   },
   vsoccer: {
-    name: "VSoccer",
+    name: "VSOCCER",
     link: "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99557814",
   },
   vtuberAwards: {
-    name: "The Vtuber Awards",
+    name: "THE VTUBER AWARDS",
     link: "https://tmsearch.uspto.gov/tsdr-api-v1-0-0/tsdr-api?serialNumber=99750600",
   },
 };
@@ -68,7 +68,7 @@ export async function run(
   const oldTrademarksInfo = readJsonFile<TrademarksInfo>(TRADEMARKS_INFO_PATH);
   const newTrademarksInfo = await fetchTrademarksInfo(context.timeoutMs);
 
-  if (!state.isInitialized || !oldTrademarksInfo) {
+  if (!state.isInitialized) {
     initializeMonitor(newTrademarksInfo, traceId);
     return context;
   }
@@ -169,7 +169,7 @@ async function reportChanges(
   traceId: string,
 ): Promise<void> {
   for (const [trademarkName, trademarkInfo] of Object.entries(updatedInfo)) {
-    const payload = buildUpdatePayload(
+    const payload = buildTrademarkUpdatePayload(
       TRADEMARKS[trademarkName as keyof TrademarksInfo].name,
       trademarkInfo.new,
     );

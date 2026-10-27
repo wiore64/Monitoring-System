@@ -20,10 +20,12 @@ const SUBREDDITS = {
     url: "https://www.reddit.com/r/filian/new/.json",
   },
   wall: {
-    name: "THE_WALL_",
+    name: "THE\\_WALL\\_",
     url: "https://www.reddit.com/r/THE_WALL_/new/.json",
   },
 } as const;
+
+type SubredditKey = keyof typeof SUBREDDITS;
 
 export type MonitorContext = {
   timeoutMs: number;
@@ -45,8 +47,8 @@ type RedditResponse = {
 export type RedditPost = {
   title: string;
   author: string;
+  timestamp: number;
   link: string;
-  timestamp: string;
   hash: string;
 };
 
@@ -54,8 +56,6 @@ type RedditFeed = {
   posts: RedditPost[];
   totalHash: string;
 };
-
-type SubredditKey = keyof typeof SUBREDDITS;
 
 type RedditFeeds = {
   [K in SubredditKey]: RedditFeed;
@@ -69,11 +69,11 @@ type UpdatedRedditFeeds = {
 
 type ComparisonResult =
   | {
-      hasNewPosts: true;
-      newPosts: UpdatedRedditFeeds;
+      hasUpdatedFeeds: true;
+      feeds: UpdatedRedditFeeds;
     }
   | {
-      hasNewPosts: false;
+      hasUpdatedFeeds: false;
     };
 
 export async function run(
@@ -84,18 +84,18 @@ export async function run(
   const previousFeeds = readJsonFile<RedditFeeds>(REDDIT_FEEDS_PATH);
   const latestFeeds = await fetchRedditFeeds(GLOBAL_CONFIG.redditAuth, ctx.timeoutMs);
 
-  if (!state.isInitialized || !previousFeeds) {
+  if (!state.isInitialized) {
     initializeMonitor(latestFeeds, traceId);
     return ctx;
   }
 
   const result = compareLatestPosts(previousFeeds, latestFeeds);
 
-  if (!result.hasNewPosts) {
+  if (!result.hasUpdatedFeeds) {
     return ctx;
   }
 
-  await reportNewPosts(result.newPosts, config["channel-id"], traceId);
+  await reportNewPosts(result.feeds, config["channel-id"], traceId);
   writeJsonFile(REDDIT_FEEDS_PATH, latestFeeds);
 
   return ctx;
@@ -131,14 +131,16 @@ async function fetchRedditFeed(
 
   for (const post of feedData.children) {
     const postData = post.data;
-    const postCreationTimestamp = new Date(postData.created * 1000).toUTCString();
 
     posts.push({
-      author: postData.author,
       title: postData.title,
+      author: postData.author,
+      timestamp: postData.created * 1000,
       link: `https://reddit.com${postData.permalink}`,
-      timestamp: postCreationTimestamp,
-      hash: crypto.hash("sha256", `${postData.author}${postCreationTimestamp}`),
+      hash: crypto.hash(
+        "sha256",
+        `${postData.author}${postData.title}${postData.permalink}${postData.created}`,
+      ),
     });
   }
 
@@ -167,7 +169,7 @@ function compareLatestPosts(
     const latestFeed = latestFeeds[key];
     const previousFeed = previousFeeds[key];
 
-    for (const post of Object.values(latestFeed.posts)) {
+    for (const post of latestFeed.posts) {
       if (previousFeed.totalHash.includes(post.hash)) {
         continue;
       }
@@ -179,8 +181,8 @@ function compareLatestPosts(
   }
 
   return {
-    hasNewPosts: Object.keys(updatedFeeds).length > 0,
-    newPosts: updatedFeeds,
+    hasUpdatedFeeds: Object.keys(updatedFeeds).length > 0,
+    feeds: updatedFeeds,
   };
 }
 
@@ -190,13 +192,13 @@ async function reportNewPosts(
   traceId: string,
 ): Promise<void> {
   for (const [key, feed] of Object.entries(feeds)) {
-    const subredditName = SUBREDDITS[key as SubredditKey].name;
+    const name = SUBREDDITS[key as SubredditKey].name;
 
-    for (const post of Object.values(feed.posts)) {
-      const payload = buildNewPostPayload(subredditName, post);
+    for (const post of feed.posts) {
+      const payload = buildNewPostPayload(name, post);
       await sendMessage(channelId, payload);
 
-      info(LOG_NAME, `New post posted on ${subredditName}: ${JSON.stringify(post)}.`, traceId);
+      info(LOG_NAME, `New post made on ${name}: ${JSON.stringify(post)}.`, traceId);
     }
   }
 }

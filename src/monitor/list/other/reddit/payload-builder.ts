@@ -2,13 +2,14 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "disc
 
 import config from "#data/other/reddit/payload-config.json" with { type: "json" };
 import { type Payload } from "#utils/message.js";
+import { formatTimestamp } from "#utils/time.js";
 
 import { type RedditPost } from "./monitor.js";
 
 export function buildNewPostPayload(subredditName: string, post: RedditPost): Payload {
   const embed = new EmbedBuilder()
     .setColor(Number(config.color))
-    .setDescription(`🟠 **NEW REDDIT POST** · \`r/${subredditName}\`\n` + `## ${post.title}`)
+    .setDescription(`🟠 **NEW REDDIT POST · r/${subredditName}**` + `\n## ${post.title}`)
     .addFields(
       {
         name: "Author",
@@ -17,7 +18,7 @@ export function buildNewPostPayload(subredditName: string, post: RedditPost): Pa
       },
       {
         name: "Posted",
-        value: new Date(`${Math.floor(new Date(post.timestamp).getTime() / 1000)}`).toUTCString(),
+        value: formatTimestamp(post.timestamp),
         inline: true,
       },
     )

@@ -6,18 +6,16 @@ import { formatDate } from "#utils/time.js";
 
 import { type TrademarkInfo } from "./monitor.js";
 
-export function buildUpdatePayload(trademarkName: string, trademarkInfo: TrademarkInfo): Payload {
+export function buildTrademarkUpdatePayload(trademarkName: string, info: TrademarkInfo): Payload {
   const embed = new EmbedBuilder()
     .setColor(Number(config.update.color))
     .setDescription(
-      `🟡 **TRADEMARK UPDATE** · **${trademarkName}**\n\n` +
-        `**Status**\n\`\`${trademarkInfo.status}\`\``,
+      `🟡 **TRADEMARK UPDATE · ${trademarkName}**` +
+        `\n\n**Status**` +
+        `\n\`\`${info.status}\`\`` +
+        `\n\n**Date**` +
+        `\n\`\`${formatDate(info.date)}\`\``,
     )
-    .addFields({
-      name: "Updated",
-      value: `\`\`${formatDate(trademarkInfo.date)}\`\``,
-      inline: true,
-    })
     .setFooter({
       text: "Trademark Monitor",
     });

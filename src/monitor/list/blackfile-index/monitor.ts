@@ -15,6 +15,7 @@ import {
 const LOG_NAME = "monitors/blackfile-index";
 const MONITOR_STATE_PATH = "./data/blackfile-index/monitor-state.json";
 const WEBSITE_STATE_PATH = "./data/blackfile-index/website-state.json";
+
 const WEBSITE_URL = "https://blackfile-index.org";
 
 export type MonitorContext = {
@@ -26,35 +27,35 @@ type WebsiteState = {
 };
 
 export async function run(
-  context: MonitorContext,
+  ctx: MonitorContext,
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const isWebsiteAvailableOld = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH)?.isAvailable;
-  const isWebsiteAvailableNew = await checkWebsiteAvailability(context.timeoutMs);
+  const previousState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
+  const isWebsiteAvailable = await checkWebsiteAvailability(ctx.timeoutMs);
 
-  if (state.messageId.length === 0 || isWebsiteAvailableOld == null) {
-    await initializeMonitor(isWebsiteAvailableNew, config["channel-id"], traceId);
-    return context;
+  if (state.messageId.length === 0) {
+    await initializeMonitor(isWebsiteAvailable, config["channel-id"], traceId);
+    return ctx;
   }
 
-  if (isWebsiteAvailableNew === isWebsiteAvailableOld) {
-    return context;
+  if (previousState.isAvailable === isWebsiteAvailable) {
+    return ctx;
   }
 
   await reportUpdate(
-    isWebsiteAvailableNew,
-    isWebsiteAvailableOld,
+    isWebsiteAvailable,
+    previousState.isAvailable,
     config["channel-id"],
     state.messageId,
     time,
     traceId,
   );
   writeJsonFile(WEBSITE_STATE_PATH, {
-    isAvailable: isWebsiteAvailableNew,
+    isAvailable: isWebsiteAvailable,
   });
 
-  return context;
+  return ctx;
 }
 
 async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
@@ -90,17 +91,17 @@ async function initializeMonitor(
 }
 
 async function reportUpdate(
-  isWebsiteAvailableNew: boolean,
-  isWebsiteAvailableOld: boolean,
+  isWebsiteAvailable: boolean,
+  wasWebsiteAvailable: boolean,
   channelId: string,
   messageId: string,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(isWebsiteAvailableNew, time.toUTCString());
+  const mainPayload = buildMainPayload(isWebsiteAvailable, time.toUTCString());
   await editMessage(mainPayload, channelId, messageId);
 
-  if (isWebsiteAvailableNew && !isWebsiteAvailableOld) {
+  if (isWebsiteAvailable && !wasWebsiteAvailable) {
     const updatePayload = buildWebsiteAvailablePayload(time);
     await sendMessage(channelId, updatePayload);
 
@@ -108,7 +109,7 @@ async function reportUpdate(
     return;
   }
 
-  if (!isWebsiteAvailableNew && isWebsiteAvailableOld) {
+  if (!isWebsiteAvailable && wasWebsiteAvailable) {
     const updatePayload = buildWebsiteUnavailablePayload(time);
     await sendMessage(channelId, updatePayload);
 
@@ -117,6 +118,6 @@ async function reportUpdate(
   }
 
   throw new ValidationError(
-    `Impossible state. New result: ${isWebsiteAvailableNew}; old result: ${isWebsiteAvailableOld}`,
+    `Impossible state. From ${isWebsiteAvailable} to ${wasWebsiteAvailable}`,
   );
 }
