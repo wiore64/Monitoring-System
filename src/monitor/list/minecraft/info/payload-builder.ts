@@ -5,7 +5,7 @@ import { formatContent, type Payload } from "#utils/message.js";
 
 import { type ServerInfo } from "./monitor.js";
 
-export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
+export function buildMainPayload(serverInfo: ServerInfo, timestamp: string): Payload {
   const generalEmbed = new EmbedBuilder()
     .setColor(Number(config.main.general.color))
     .setDescription(
@@ -14,7 +14,7 @@ export function buildMainPayload(serverInfo: ServerInfo, time: Date): Payload {
         PROTOCOL: serverInfo.protocol,
         ONLINE: serverInfo.online,
         MAX_ONLINE: serverInfo.maxOnline,
-        TIMESTAMP: time.toUTCString(),
+        TIMESTAMP: timestamp,
       }),
     );
 

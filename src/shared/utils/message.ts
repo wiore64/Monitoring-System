@@ -62,9 +62,7 @@ export async function editMessage(
       throw new ValidationError(`Message not found: ${messageId}`);
     }
 
-    return await message.edit({
-      components: [],
-    });
+    return await message.edit(payload);
   } catch (cause: unknown) {
     const error = toError(cause);
 
