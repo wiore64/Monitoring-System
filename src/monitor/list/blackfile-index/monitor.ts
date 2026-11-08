@@ -99,7 +99,7 @@ async function reportUpdate(
   traceId: string,
 ): Promise<void> {
   const mainPayload = buildMainPayload(isWebsiteAvailable, time.toUTCString());
-  await editMessage(mainPayload, channelId, messageId);
+  await editMessage(channelId, messageId, mainPayload);
 
   if (isWebsiteAvailable && !wasWebsiteAvailable) {
     const updatePayload = buildWebsiteAvailablePayload(time);

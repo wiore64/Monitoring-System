@@ -39,9 +39,9 @@ export async function sendMessage(channelId: string, payload: Payload): Promise<
 }
 
 export async function editMessage(
-  payload: Payload,
   channelId: string,
   messageId: string,
+  payload: Payload,
 ): Promise<Message> {
   try {
     const channel =

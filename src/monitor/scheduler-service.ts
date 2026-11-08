@@ -9,6 +9,7 @@ export function initialize(traceId: string = generateTraceId()): void {
 
   for (const monitor of Object.keys(config) as MonitorType[]) {
     if (
+      monitor === MonitorType.Filianislost ||
       monitor === MonitorType.BlackfileIndex ||
       monitor === MonitorType.MinecraftInfo ||
       monitor === MonitorType.Trademark

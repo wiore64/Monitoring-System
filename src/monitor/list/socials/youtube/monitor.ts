@@ -182,7 +182,7 @@ async function handleUpdate(
   traceId: string,
 ): Promise<void> {
   const mainPayload = buildMainPayload(channelInfo, time);
-  await editMessage(mainPayload, channelId, messageId);
+  await editMessage(channelId, messageId, mainPayload);
 
   for (const [field, { oldValue, newValue }] of Object.entries(changedFields)) {
     if (["viewCount", "subCount"].includes(field)) {

@@ -1,32 +1,21 @@
+import crypto from "node:crypto";
+
 import config from "#data/filianislost/monitor-config.json" with { type: "json" };
 import state from "#data/filianislost/monitor-state.json" with { type: "json" };
-import { getCode } from "#shared/error.js";
-import { readJsonFile, writeJsonFile } from "#utils/file.js";
+import { readFile, writeFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
 import { fetchUrl } from "#utils/network.js";
-import { findDifference, formatDuration } from "#utils/time.js";
 
-import {
-  buildMainPayload,
-  buildWebsiteAvailablePayload,
-  buildWebsiteReturnPayload,
-  buildWebsiteUnavailablePayload,
-} from "./payload-builder.js";
+import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 const LOG_NAME = "filianislost";
 const MONITOR_STATE_PATH = "./data/filianislost/monitor-state.json";
-const WEBSITE_STATE_PATH = "./data/filianislost/website-state.json";
+const WEBSITE_STATE_PATH = "./data/filianislost/website-hash.txt";
 const WEBSITE_URL = "https://filianislost.com";
 
 export type MonitorContext = {
   timeoutMs: number;
-};
-
-type WebsiteState = {
-  hasEverReturned: boolean;
-  isAvailable: boolean;
-  lastAvailabilityChangeTimestamp: string;
 };
 
 export async function run(
@@ -34,111 +23,55 @@ export async function run(
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const oldWebsiteState = readJsonFile<WebsiteState>(WEBSITE_STATE_PATH);
-  const isWebsiteAvailable = await checkWebsiteAvailability(context.timeoutMs);
+  const oldHash = readFile(WEBSITE_STATE_PATH);
+  const newHash = await fetchWebsiteHash(context.timeoutMs);
 
-  if (state.messageId.length === 0 || !oldWebsiteState) {
-    await initializeMonitor(isWebsiteAvailable, config["channel-id"], time, traceId);
+  if (state.messageId.length === 0 || !oldHash) {
+    await initializeMonitor(newHash, config["channel-id"], traceId);
     return context;
   }
 
-  if (isWebsiteAvailable === oldWebsiteState.isAvailable) {
+  if (newHash === oldHash) {
     return context;
   }
 
-  debug(
-    LOG_NAME,
-    `Website availability changed: ${isWebsiteAvailable}. Old state: ${JSON.stringify(oldWebsiteState)}`,
-    traceId,
-  );
-
-  await reportUpdate(
-    isWebsiteAvailable,
-    oldWebsiteState,
-    config["channel-id"],
-    state.messageId,
-    time,
-    traceId,
-  );
-  persistWebsiteStateUpdate(oldWebsiteState.hasEverReturned, isWebsiteAvailable, time);
+  await reportUpdate(config["channel-id"], state.messageId, time, traceId);
+  writeFile(WEBSITE_STATE_PATH, newHash);
 
   return context;
 }
 
-async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
+async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
   const response = await fetchUrl(WEBSITE_URL, timeoutMs);
 
-  if (response.success) {
-    return response.data.ok;
+  if (!response.success) {
+    throw response.error;
   }
 
-  if ("ENOTFOUND" === (getCode(response.error) ?? "")) {
-    return false;
-  }
+  const text = await response.data.text();
 
-  throw response.error;
+  return crypto.hash("sha256", text.substring(0, text.indexOf("cloudflare")));
 }
 
-async function initializeMonitor(
-  isWebsiteAvailable: boolean,
-  channelId: string,
-  time: Date,
-  traceId: string,
-): Promise<void> {
-  const payload = buildMainPayload(isWebsiteAvailable, "N/A");
-  const message = await sendMessage(channelId, payload);
+async function initializeMonitor(hash: string, channelId: string, traceId: string): Promise<void> {
+  const message = await sendMessage(channelId, buildMainPayload("N/A"));
 
-  persistWebsiteStateUpdate(isWebsiteAvailable, isWebsiteAvailable, time);
+  writeFile(WEBSITE_STATE_PATH, hash);
 
   state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  info(LOG_NAME, `Initialized.`, traceId);
+  debug(LOG_NAME, `Initialized.`, traceId);
 }
 
 async function reportUpdate(
-  isWebsiteAvailable: boolean,
-  oldWebsiteState: WebsiteState,
   channelId: string,
   messageId: string,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(isWebsiteAvailable, time.toUTCString());
-  await editMessage(mainPayload, channelId, messageId);
+  await editMessage(channelId, messageId, buildMainPayload(time.toUTCString()));
+  await sendMessage(channelId, buildUpdatePayload(time));
 
-  const duration = formatDuration(
-    findDifference(time, oldWebsiteState.lastAvailabilityChangeTimestamp),
-  );
-
-  if (isWebsiteAvailable && !oldWebsiteState.hasEverReturned) {
-    const updatePayload = buildWebsiteReturnPayload(duration, time);
-    await sendMessage(channelId, updatePayload);
-
-    info(LOG_NAME, `Website is finally back after ${duration}!`, traceId);
-    return;
-  }
-
-  const updatePayload = isWebsiteAvailable
-    ? buildWebsiteAvailablePayload(duration, time)
-    : buildWebsiteUnavailablePayload(duration, time);
-  await sendMessage(channelId, updatePayload);
-
-  info(
-    LOG_NAME,
-    `Website ${isWebsiteAvailable ? "is back online" : "went down"} after ${duration}.`,
-    traceId,
-  );
-}
-
-function persistWebsiteStateUpdate(
-  hasEverReturned: boolean,
-  isWebsiteAvailable: boolean,
-  time: Date,
-): void {
-  writeJsonFile(WEBSITE_STATE_PATH, {
-    hasEverReturned: hasEverReturned || isWebsiteAvailable,
-    isAvailable: isWebsiteAvailable,
-    lastAvailabilityChangeTimestamp: time.toISOString(),
-  });
+  info(LOG_NAME, "Website has been updated.", traceId);
 }

@@ -244,8 +244,7 @@ async function initializeMonitor(
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const payload = buildMainPayload(info, "N/A");
-  const message = await sendMessage(channelId, payload);
+  const message = await sendMessage(channelId, buildMainPayload(info, "N/A"));
 
   if (isAvailable) {
     writeJsonFile(SERVER_INFO_PATH, info);
@@ -292,8 +291,7 @@ async function reportUpdate(
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const payload = buildMainPayload(serverInfo, time.toUTCString());
-  await editMessage(payload, channelId, messageId);
+  await editMessage(channelId, messageId, buildMainPayload(serverInfo, time.toUTCString()));
 
   for (const [key, values] of Object.entries(changedServerInfo)) {
     if (key === "online") {
