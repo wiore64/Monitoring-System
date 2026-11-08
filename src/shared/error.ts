@@ -1,4 +1,4 @@
-const DNS_ERROR_CODES = new Set(["EAI_AGAIN" /*, "ENOTFOUND" */, "EHOSTUNREACH"]);
+const DNS_ERROR_CODES = new Set(["EAI_AGAIN", "ENOTFOUND", "EHOSTUNREACH"]);
 
 const TIMEOUT_ERROR_CODES = new Set([
   "ETIMEDOUT",

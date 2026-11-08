@@ -23,8 +23,8 @@ export function initialize(traceId: string = generateTraceId()): void {
     if (
       monitor === MonitorType.BlackfileIndex ||
       monitor === MonitorType.MinecraftInfo ||
-      monitor === MonitorType.Trademark ||
-      monitor === MonitorType.Reddit
+      monitor === MonitorType.Trademark
+      // || monitor === MonitorType.Reddit
     ) {
       const result = initiateMonitor(monitor);
 

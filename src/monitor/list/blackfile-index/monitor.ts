@@ -1,6 +1,6 @@
 import config from "#data/blackfile-index/monitor-config.json" with { type: "json" };
 import state from "#data/blackfile-index/monitor-state.json" with { type: "json" };
-import { isDnsError, ValidationError } from "#shared/error.js";
+import { getCode, isDnsError, ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -65,7 +65,7 @@ async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
     return true;
   }
 
-  if (!isDnsError(response.error)) {
+  if (!isDnsError(response.error) || getCode(response.error) === "ENOTFOUND") {
     return false;
   }
 
