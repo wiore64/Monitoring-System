@@ -8,11 +8,7 @@ import {
 import {
   type MonitorContext as FilianislostContext,
   run as runFilianislost,
-} from "./list/filianislost/website/monitor.js";
-import {
-  type MonitorContext as TwitterWallContext,
-  run as runTwitterWall,
-} from "./list/filianislost/twitter/monitor.js";
+} from "./list/filianislost/monitor.js";
 import {
   type MonitorContext as MinecraftInfoContext,
   run as runMinecraftInfo,
@@ -22,10 +18,6 @@ import {
   run as runMinecraftState,
 } from "./list/minecraft/state/monitor.js";
 import {
-  type MonitorContext as TwitterFilianContext,
-  run as runTwitterFilian,
-} from "./list/socials/twitter/monitor.js";
-import {
   type MonitorContext as TrademarkContext,
   run as runTrademarks,
 } from "./list/other/trademarks/monitor.js";
@@ -33,35 +25,25 @@ import {
   type MonitorContext as YoutubeFilianContext,
   run as runYoutubeFilian,
 } from "./list/socials/youtube/monitor.js";
-import {
-  type MonitorContext as RedditContext,
-  run as runReddit,
-} from "./list/other/reddit/monitor.js";
 
 const LOG_NAME = "Monitor Service";
 
 export enum MonitorType {
   BlackfileIndex = "blackfile-index",
-  FilianislostWebsite = "filianislost/website",
+  Filianislost = "filianislost",
   MinecraftInfo = "minecraft-info",
   MinecraftState = "minecraft-state",
-  TwitterFilian = "twitter-filian",
-  FilianislostTwitter = "twitter-wall",
   Trademark = "trademarks",
   YoutubeFilian = "youtube-filian",
-  Reddit = "reddit",
 }
 
 type MonitorContext = {
   [MonitorType.BlackfileIndex]: BlackfileIndexContext;
-  [MonitorType.FilianislostWebsite]: FilianislostContext;
-  [MonitorType.FilianislostTwitter]: TwitterWallContext;
+  [MonitorType.Filianislost]: FilianislostContext;
   [MonitorType.MinecraftInfo]: MinecraftInfoContext;
   [MonitorType.MinecraftState]: MinecraftStateContext;
-  [MonitorType.TwitterFilian]: TwitterFilianContext;
   [MonitorType.Trademark]: TrademarkContext;
   [MonitorType.YoutubeFilian]: YoutubeFilianContext;
-  [MonitorType.Reddit]: RedditContext;
 };
 
 type MonitorExecutor<T extends MonitorType> = (
@@ -74,14 +56,11 @@ export type ServiceResult = { success: true } | { success: false; reason: string
 
 const MONITOR_REGISTRY: { [T in MonitorType]: MonitorExecutor<T> } = {
   [MonitorType.BlackfileIndex]: runBlackfileIndex,
-  [MonitorType.FilianislostWebsite]: runFilianislost,
+  [MonitorType.Filianislost]: runFilianislost,
   [MonitorType.MinecraftInfo]: runMinecraftInfo,
   [MonitorType.MinecraftState]: runMinecraftState,
-  [MonitorType.TwitterFilian]: runTwitterFilian,
-  [MonitorType.FilianislostTwitter]: runTwitterWall,
   [MonitorType.Trademark]: runTrademarks,
   [MonitorType.YoutubeFilian]: runYoutubeFilian,
-  [MonitorType.Reddit]: runReddit,
 };
 
 const runningMonitors = new Set<MonitorType>();

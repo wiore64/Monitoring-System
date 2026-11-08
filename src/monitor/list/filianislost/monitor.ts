@@ -1,5 +1,5 @@
-import config from "#data/filianislost/website/monitor-config.json" with { type: "json" };
-import state from "#data/filianislost/website/monitor-state.json" with { type: "json" };
+import config from "#data/filianislost/monitor-config.json" with { type: "json" };
+import state from "#data/filianislost/monitor-state.json" with { type: "json" };
 import { getCode } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
@@ -14,9 +14,9 @@ import {
   buildWebsiteUnavailablePayload,
 } from "./payload-builder.js";
 
-const LOG_NAME = "filianislost/website";
-const MONITOR_STATE_PATH = "./data/filianislost/website/monitor-state.json";
-const WEBSITE_STATE_PATH = "./data/filianislost/website/website-state.json";
+const LOG_NAME = "filianislost";
+const MONITOR_STATE_PATH = "./data/filianislost/monitor-state.json";
+const WEBSITE_STATE_PATH = "./data/filianislost/website-state.json";
 const WEBSITE_URL = "https://filianislost.com";
 
 export type MonitorContext = {

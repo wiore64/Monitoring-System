@@ -1,6 +1,6 @@
 import { EmbedBuilder } from "discord.js";
 
-import config from "#data/filianislost/website/payload-config.json" with { type: "json" };
+import config from "#data/filianislost/payload-config.json" with { type: "json" };
 import { formatContent, type Payload } from "#utils/message.js";
 
 export function buildMainPayload(isWebsiteAvailable: boolean, timestamp: string): Payload {

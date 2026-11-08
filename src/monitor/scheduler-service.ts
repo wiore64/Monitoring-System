@@ -8,23 +8,10 @@ export function initialize(traceId: string = generateTraceId()): void {
   debug(LOG_NAME, "Initializing...", traceId);
 
   for (const monitor of Object.keys(config) as MonitorType[]) {
-    // if (
-    //   ![
-    //     MonitorType.BlackfileIndex,
-    //     MonitorType.FilianislostWebsite,
-    //     MonitorType.FilianislostTwitter,
-    //     MonitorType.MinecraftInfo,
-    //     MonitorType.Trademark,
-    //   ].includes(monitor)
-    // ) {
-    //   return;
-    // }
-
     if (
       monitor === MonitorType.BlackfileIndex ||
       monitor === MonitorType.MinecraftInfo ||
       monitor === MonitorType.Trademark
-      // || monitor === MonitorType.Reddit
     ) {
       const result = initiateMonitor(monitor);
 
