@@ -49,7 +49,7 @@ type TrademarksInfo = {
 };
 
 type UpdatedTrademarksInfo = {
-  [T in keyof TrademarksInfo]?: {
+  [K in keyof TrademarksInfo]?: {
     new: TrademarkInfo;
     old: TrademarkInfo;
   };

@@ -12,7 +12,8 @@ export function initialize(traceId: string = generateTraceId()): void {
       monitor === MonitorType.Filianislost ||
       monitor === MonitorType.BlackfileIndex ||
       monitor === MonitorType.MinecraftInfo ||
-      monitor === MonitorType.Trademark
+      monitor === MonitorType.Trademark ||
+      monitor === MonitorType.YoutubeFilian
     ) {
       const result = initiateMonitor(monitor);
 

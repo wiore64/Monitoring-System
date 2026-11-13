@@ -155,7 +155,7 @@ function processError(monitor: MonitorType, error: Error, traceId: string) {
   if (!(error instanceof DnsError)) {
     warn(
       LOG_NAME,
-      `Failed to run ${monitor} (${getCode(error) ?? error.name}): ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
+      `Failed to run ${monitor} (${error.name}) (${getCode(error)}): ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
       traceId,
     );
     return;
@@ -169,7 +169,7 @@ function processError(monitor: MonitorType, error: Error, traceId: string) {
 
   warn(
     LOG_NAME,
-    `Failed to run ${monitor} (${getCode(error) ?? error.name}): ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
+    `${outageErrorCount}/${outageErrorThreshold} Failed to run ${monitor} (${error.name}) (${getCode(error)}): ${error.message}.\n\n${error.stack ?? "No stack trace provided."}`,
     traceId,
   );
 

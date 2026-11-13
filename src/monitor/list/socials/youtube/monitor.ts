@@ -1,22 +1,22 @@
-import { CONFIG as globalConfig } from "#root/config.js";
+import { CONFIG as GLOBAL_CONFIG } from "#root/config.js";
 import config from "#data/socials/youtube/monitor-config.json" with { type: "json" };
-import { HttpError } from "#shared/error.js";
+import state from "#data/socials/youtube/monitor-state.json" with { type: "json" };
+import { ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
-import { info } from "#utils/logger.js";
+import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
+import { fetchUrl } from "#utils/network.js";
 
 import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
-const LOG_NAME = "youtube/filian";
+const LOG_NAME = "monitors/socials/youtube";
 const MONITOR_STATE_PATH = "./data/socials/youtube/monitor-state.json";
 const CHANNEL_INFO_PATH = "./data/socials/youtube/channel-info.json";
-
-type MonitorState = {
-  "message-id": string;
-};
+const YOUTUBE_URL =
+  "https://www.googleapis.com/youtube/v3/channels?part=snippet&part=statistics&part=brandingSettings&id=UCvjNdLLy5sinqD92Axk8w-g&key={token}";
 
 export type MonitorContext = {
-  "timeout-ms": number;
+  timeoutMs: number;
 };
 
 export type ChannelInfo = {
@@ -30,20 +30,15 @@ export type ChannelInfo = {
   viewCount: number;
 };
 
-type ChangedChannelInfo = Partial<{
-  [K in keyof ChannelInfo]: {
-    oldValue: ChannelInfo[K];
-    newValue: ChannelInfo[K];
+type UpdatedChannelInfo = {
+  [K in keyof ChannelInfo]?: {
+    new: ChannelInfo[K];
+    old: ChannelInfo[K];
   };
-}>;
-
-type ComparisonResult = {
-  hasChanges: boolean;
-  changedFields: ChangedChannelInfo;
 };
 
-type YoutubeChannelResponse = {
-  items: Array<{
+type YoutubeResponseData = {
+  items: {
     snippet: {
       title: string;
       customUrl: string;
@@ -64,62 +59,51 @@ type YoutubeChannelResponse = {
       subscriberCount: number;
       videoCount: number;
     };
-  }>;
+  }[];
+};
+
+type ComparisonResult = {
+  hasUpdates: boolean;
+  info: UpdatedChannelInfo;
 };
 
 export async function run(
-  context: MonitorContext,
+  ctx: MonitorContext,
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
-  const state = readJsonFile<MonitorState>(MONITOR_STATE_PATH);
+  const oldInfo = readJsonFile<ChannelInfo>(CHANNEL_INFO_PATH);
+  const newInfo = await fetchChannelInfo(GLOBAL_CONFIG.ytToken, ctx.timeoutMs);
 
-  const oldChannelInfo = readJsonFile<ChannelInfo>(CHANNEL_INFO_PATH);
-  const newChannelInfo = await fetchChannelInfo(globalConfig.ytToken, context["timeout-ms"]);
-
-  if (state["message-id"].length === 0) {
-    await initializeMonitor(state, newChannelInfo, config["channel-id"], time, traceId);
-    return context;
+  if (state.messageId.length === 0) {
+    await initializeMonitor(newInfo, config["channel-id"], traceId);
+    return ctx;
   }
 
-  const result = compareChannelInfo(oldChannelInfo, newChannelInfo);
+  const result = compareChannelInfo(oldInfo, newInfo);
 
-  if (!result.hasChanges) {
-    return context;
+  if (!result.hasUpdates) {
+    return ctx;
   }
 
-  await handleUpdate(
-    newChannelInfo,
-    result.changedFields,
-    config["channel-id"],
-    state["message-id"],
-    time,
-    traceId,
-  );
+  await reportUpdate(newInfo, result.info, config["channel-id"], state.messageId, time, traceId);
+  writeJsonFile(CHANNEL_INFO_PATH, newInfo);
 
-  return context;
+  return ctx;
 }
 
 async function fetchChannelInfo(token: string, timeoutMs: number): Promise<ChannelInfo> {
-  const response = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet&part=statistics&part=brandingSettings&id=UCvjNdLLy5sinqD92Axk8w-g&key=${token}`,
-    {
-      signal: AbortSignal.timeout(timeoutMs),
-    },
-  );
+  const response = await fetchUrl(YOUTUBE_URL.replace("{token}", token), timeoutMs);
 
-  if (!response.ok) {
-    throw new HttpError(
-      `Failed to fetch channel info.`,
-      `${response.status.toString()} ${response.statusText}`,
-    );
+  if (!response.success) {
+    throw response.error;
   }
 
-  const responseJson = (await response.json()) as YoutubeChannelResponse;
-  const channel = responseJson.items[0];
+  const data = (await response.data.json()) as YoutubeResponseData;
+  const channel = data.items[0];
 
-  if (channel === undefined) {
-    throw new TypeError(`Channel not found.`);
+  if (channel == null) {
+    throw new ValidationError(`Invalid data for the socials' YouTube channel`);
   }
 
   return {
@@ -135,70 +119,65 @@ async function fetchChannelInfo(token: string, timeoutMs: number): Promise<Chann
 }
 
 async function initializeMonitor(
-  state: MonitorState,
   channelInfo: ChannelInfo,
   channelId: string,
-  time: Date,
   traceId: string,
 ): Promise<void> {
-  const payload = buildMainPayload(channelInfo, time);
+  const payload = buildMainPayload(channelInfo, "N/A");
   const message = await sendMessage(channelId, payload);
 
-  state["message-id"] = message.id;
+  writeJsonFile(CHANNEL_INFO_PATH, channelInfo);
+
+  state.messageId = message.id;
   writeJsonFile(MONITOR_STATE_PATH, state);
 
-  updateChannelInfo(channelInfo);
-
-  info(LOG_NAME, "Initialized.", traceId);
+  debug(LOG_NAME, "Initialized.", traceId);
 }
 
 function compareChannelInfo(oldInfo: ChannelInfo, newInfo: ChannelInfo): ComparisonResult {
-  const changedFields: ChangedChannelInfo = {};
+  const updatedInfo: UpdatedChannelInfo = {};
 
   for (const key of Object.keys(newInfo) as (keyof ChannelInfo)[]) {
     if (newInfo[key] === oldInfo[key]) {
       continue;
     }
 
-    // Tried my best to suppress it because it is obvious what it complains about is impossible.
-    (changedFields as Record<keyof ChannelInfo, ChangedChannelInfo>)[key] = {
-      oldValue: oldInfo[key],
-      newValue: newInfo[key],
-    } as ChangedChannelInfo;
+    (updatedInfo as any)[key] = {
+      new: newInfo[key],
+      old: oldInfo[key],
+    };
   }
 
   return {
-    hasChanges: Object.keys(changedFields).length > 0,
-    changedFields,
+    hasUpdates: Object.keys(updatedInfo).length > 0,
+    info: updatedInfo,
   };
 }
 
-async function handleUpdate(
+async function reportUpdate(
   channelInfo: ChannelInfo,
-  changedFields: ChangedChannelInfo,
+  updatedInfo: UpdatedChannelInfo,
   channelId: string,
   messageId: string,
   time: Date,
   traceId: string,
 ): Promise<void> {
-  const mainPayload = buildMainPayload(channelInfo, time);
+  const mainPayload = buildMainPayload(channelInfo, time.toUTCString());
   await editMessage(channelId, messageId, mainPayload);
 
-  for (const [field, { oldValue, newValue }] of Object.entries(changedFields)) {
-    if (["viewCount", "subCount"].includes(field)) {
+  for (const [key, values] of Object.entries(updatedInfo)) {
+    if (key === "viewCount" || key === "subCount") {
       continue;
     }
 
-    // Also, suppressing the type assertion here because it is obvious what it complains about is impossible.
-    const updatePayload = buildUpdatePayload(field as keyof ChannelInfo, oldValue, newValue, time);
+    const updatePayload = buildUpdatePayload(
+      key as keyof ChannelInfo,
+      values.new,
+      values.old,
+      time,
+    );
     await sendMessage(channelId, updatePayload);
 
-    info(LOG_NAME, `${field} observed to be updated.`, traceId);
+    info(LOG_NAME, `${key} observed to be updated from ${values.old} to ${values.new}.`, traceId);
   }
-
-  updateChannelInfo(channelInfo);
-}
-
-function updateChannelInfo(info: ChannelInfo): void {
-  writeJsonFile(CHANNEL_INFO_PATH, info);
 }

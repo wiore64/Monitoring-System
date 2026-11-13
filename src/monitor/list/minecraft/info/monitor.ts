@@ -79,7 +79,7 @@ export async function run(
     throw fetchResult.error;
   }
 
-  if (state.messageId.length == 0) {
+  if (state.messageId.length === 0) {
     await initializeMonitor(
       fetchResult.isAvailable,
       fetchResult.info,
