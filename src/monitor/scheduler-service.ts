@@ -26,6 +26,17 @@ export function initialize(traceId: string = generateTraceId()): void {
 }
 
 function initiateMonitor(monitor: MonitorType): ServiceResult {
+  if (monitor === MonitorType.MinecraftState) {
+    return startMonitorInterval(
+      monitor,
+      {
+        noResponseCount: 0,
+        timeoutMs: config[monitor].timeout,
+      },
+      config[monitor].interval,
+    );
+  }
+
   return startMonitorInterval(
     monitor,
     {

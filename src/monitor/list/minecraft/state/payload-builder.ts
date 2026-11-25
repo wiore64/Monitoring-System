@@ -6,7 +6,7 @@ import { type Payload, formatContent } from "#utils/message.js";
 import type { ServerState, ServerStatus } from "./monitor.js";
 
 export function buildMainPayload(state: ServerState, timestamp: string): Payload {
-  const embed = new EmbedBuilder().setColor(Number(config.status.color)).setDescription(
+  const embed = new EmbedBuilder().setColor(Number(config.main.color)).setDescription(
     formatContent(config.main.body, {
       STATUS: config.other["status-names"][state.status],
       TIMESTAMP: timestamp,
