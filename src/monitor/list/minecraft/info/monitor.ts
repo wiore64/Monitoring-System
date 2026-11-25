@@ -12,7 +12,7 @@ import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 
 export const schedulerHooks = {
   isRestartTime: (now: Date): boolean => {
-    return isInTimeRange(config["restart-window"].start, config["restart-window"].end, now);
+    return isInTimeRange(config.restart.start, config.restart.end, now);
   },
 };
 

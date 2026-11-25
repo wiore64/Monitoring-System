@@ -8,25 +8,18 @@ export function initialize(traceId: string = generateTraceId()): void {
   debug(LOG_NAME, "Initializing...", traceId);
 
   for (const monitor of Object.keys(config) as MonitorType[]) {
-    if (
-      monitor === MonitorType.Filianislost ||
-      monitor === MonitorType.BlackfileIndex ||
-      monitor === MonitorType.MinecraftInfo ||
-      monitor === MonitorType.Trademark ||
-      monitor === MonitorType.YoutubeFilian
-    ) {
-      const result = initiateMonitor(monitor);
+    const result = initiateMonitor(monitor);
 
-      if (!result.success) {
-        severe(LOG_NAME, `Failed to schedule ${monitor}: ${result.reason}`, traceId);
-      } else {
-        debug(
-          LOG_NAME,
-          `Successfully scheduled: ${monitor} every ${config[monitor].interval}ms`,
-          traceId,
-        );
-      }
+    if (!result.success) {
+      severe(LOG_NAME, `Failed to schedule ${monitor}: ${result.reason}`, traceId);
+      continue;
     }
+
+    debug(
+      LOG_NAME,
+      `Successfully scheduled ${monitor} to run every ${config[monitor].interval}ms.`,
+      traceId,
+    );
   }
 
   debug(LOG_NAME, "Initialized.", traceId);
