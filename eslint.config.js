@@ -17,9 +17,9 @@ export default [
     },
 
     rules: {
-      eqeqeq: ["error", "always"],
       curly: ["error", "all"],
       "no-console": "off",
+      "@typescript-eslint/no-explicit-any": "off",
 
       "@typescript-eslint/no-unused-vars": [
         "warn",

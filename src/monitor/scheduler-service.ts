@@ -1,0 +1,47 @@
+import config from "#data/scheduler/scheduler-config.json" with { type: "json" };
+import { MonitorType, type ServiceResult, startMonitorInterval } from "#monitor/monitor-service.js";
+import { debug, severe, generateTraceId } from "#utils/logger.js";
+
+const LOG_NAME = "Scheduler Service";
+
+export function initialize(traceId: string = generateTraceId()): void {
+  debug(LOG_NAME, "Initializing...", traceId);
+
+  for (const monitor of Object.keys(config) as MonitorType[]) {
+    const result = initiateMonitor(monitor);
+
+    if (!result.success) {
+      severe(LOG_NAME, `Failed to schedule ${monitor}: ${result.reason}`, traceId);
+      continue;
+    }
+
+    debug(
+      LOG_NAME,
+      `Successfully scheduled ${monitor} to run every ${config[monitor].interval}ms.`,
+      traceId,
+    );
+  }
+
+  debug(LOG_NAME, "Initialized.", traceId);
+}
+
+function initiateMonitor(monitor: MonitorType): ServiceResult {
+  if (monitor === MonitorType.MinecraftState) {
+    return startMonitorInterval(
+      monitor,
+      {
+        noResponseCount: 0,
+        timeoutMs: config[monitor].timeout,
+      },
+      config[monitor].interval,
+    );
+  }
+
+  return startMonitorInterval(
+    monitor,
+    {
+      timeoutMs: config[monitor].timeout,
+    },
+    config[monitor].interval,
+  );
+}

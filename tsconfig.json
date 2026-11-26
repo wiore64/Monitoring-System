@@ -32,6 +32,15 @@
     // "noFallthroughCasesInSwitch": true,
     // "noPropertyAccessFromIndexSignature": true,
 
+    "customConditions": ["development"],
+
+    "paths": {
+      "#root/*.js": ["./src/*.ts"],
+      "#monitor/*.js": ["./src/monitor/*.ts"],
+      "#shared/*.js": ["./src/shared/*.ts"],
+      "#utils/*.js": ["./src/shared/utils/*.ts"]
+    },
+
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
