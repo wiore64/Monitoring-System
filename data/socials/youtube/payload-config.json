@@ -1,0 +1,20 @@
+{
+  "main": {
+    "color": "0xCC181E",
+    "general": {
+      "body": "# Socials | YouTube\n**The one who has been lost in the shadows.**\n### Information\n**Name:** ``{NAME}``\n**Handle:** ``{HANDLE}``\n**Videos:** ``{VID_COUNT}``\n**Subscribers:** ``{SUB_COUNT}``\n**Viewers:** ``{VIEW_COUNT}``\n**Link: [Click](<https://www.youtube.com/@filianIsLost>)**\n**Last Update:** ``{TIMESTAMP}``"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "avatar": {
+      "title": "Avatar"
+    },
+    "banner": {
+      "title": "Banner"
+    }
+  },
+  "update": {
+    "color": "0xCC181E"
+  }
+}

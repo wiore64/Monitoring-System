@@ -1,0 +1,16 @@
+{
+  "channel-id": "1494636276932935681",
+  "status": {
+    "no-response-threshold": 3
+  },
+  "events": {
+    "restart": {
+      "start": "&-09:54",
+      "end": "&-09:56"
+    },
+    "revival": {
+      "start": "&-6-00:00",
+      "end": "&-6-09:56"
+    }
+  }
+}

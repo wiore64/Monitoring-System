@@ -1,7 +1,16 @@
-node_modules/
-logs/
-data/
-dist/
-.zed/
+# Precious
 .env
 TODO.md
+
+# Heavy stuff
+logs/
+dist/
+node_modules/
+
+# System data
+data/**
+!data/**/
+!data/**/*monitor-config*
+!data/**/*monitor-state*
+!data/**/*payload-config*
+!data/scheduler/scheduler-config.json

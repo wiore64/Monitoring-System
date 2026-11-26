@@ -1,0 +1,17 @@
+{
+  "main": {
+    "color": "0x80513D",
+    "body": "# Minecraft Server | State\n**Don't misunderstand, there's more to be found.**\n## Information\n**IP:** ``50.115.0.25:25565``\n**Status:** ``{STATUS}``\n**Events:** ``None``\n**Last update:** ``{TIMESTAMP}``"
+  },
+  "status": {
+    "color": "0x57FF7E"
+  },
+  "other": {
+    "status-names": {
+      "ONLINE": "Online",
+      "OFFLINE": "Offline",
+      "RESPONDING": "Responding",
+      "UNRESPONDING": "Unresponding"
+    }
+  }
+}

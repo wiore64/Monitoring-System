@@ -1,0 +1,26 @@
+{
+  "blackfile-index": {
+    "interval": 180000,
+    "timeout": 15000
+  },
+  "filianislost": {
+    "interval": 180000,
+    "timeout": 15000
+  },
+  "minecraft-info": {
+    "interval": 15000,
+    "timeout": 10000
+  },
+  "minecraft-state": {
+    "interval": 10000,
+    "timeout": 5000
+  },
+  "trademarks": {
+    "interval": 900000,
+    "timeout": 45000
+  },
+  "youtube-filian": {
+    "interval": 600000,
+    "timeout": 30000
+  }
+}
