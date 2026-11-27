@@ -1,6 +1,6 @@
 import { DiscordAPIError, HTTPError, Message, type BaseMessageOptions } from "discord.js";
 
-import { client } from "#root/bootstrap.js";
+import { client } from "#shared/client.js";
 import { toError, classifyNetworkError, ValidationError, HttpError } from "#shared/error.js";
 
 export type Payload = BaseMessageOptions;

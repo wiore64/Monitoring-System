@@ -1,14 +1,9 @@
-import { Client } from "discord.js";
-
+import { client } from "#shared/client.js";
 import { createDirectory } from "#utils/file.js";
 import { info, generateTraceId } from "#utils/logger.js";
 import { CONFIG } from "./config.js";
 
 const LOG_NAME = "bootstrap";
-
-export const client = new Client({
-  intents: [],
-});
 
 async function run(): Promise<void> {
   const traceId = generateTraceId();
