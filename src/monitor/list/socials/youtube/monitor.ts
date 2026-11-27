@@ -80,6 +80,12 @@ export async function run(
     return ctx;
   }
 
+  if (Object.keys(oldInfo).length === 0) {
+    writeJsonFile(CHANNEL_INFO_PATH, newInfo);
+    debug(LOG_NAME, "Old info not found. New one persisted.", traceId);
+    return ctx;
+  }
+
   const result = compareChannelInfo(oldInfo, newInfo);
 
   if (!result.hasUpdates) {

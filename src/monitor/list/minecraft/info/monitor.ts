@@ -91,6 +91,12 @@ export async function run(
     return ctx;
   }
 
+  if (Object.keys(oldInfo).length === 0) {
+    writeJsonFile(SERVER_INFO_PATH, fetchResult.info);
+    debug(LOG_NAME, "Old info not found. New one persisted.", traceId);
+    return ctx;
+  }
+
   if (!fetchResult.isAvailable) {
     if (!state.isOfflineReported) {
       await reportUpdate(

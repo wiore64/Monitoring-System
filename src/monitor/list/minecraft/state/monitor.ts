@@ -58,6 +58,12 @@ export async function run(
     return ctx;
   }
 
+  if (Object.keys(oldState).length === 0) {
+    writeJsonFile(SERVER_STATE_PATH, newState);
+    debug(LOG_NAME, "Old state not found. A new one persisted.", traceId);
+    return ctx;
+  }
+
   const comparisonResult = compareServerStates(oldState, newState);
 
   if (!comparisonResult.hasUpdates) {

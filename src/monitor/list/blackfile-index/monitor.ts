@@ -39,6 +39,14 @@ export async function run(
     return ctx;
   }
 
+  if (Object.keys(previousState).length === 0) {
+    writeJsonFile(WEBSITE_STATE_PATH, {
+      isAvailable: isWebsiteAvailable,
+    });
+    debug(LOG_NAME, "Previous state not found. New one persisted.", traceId);
+    return ctx;
+  }
+
   if (previousState.isAvailable === isWebsiteAvailable) {
     return ctx;
   }
