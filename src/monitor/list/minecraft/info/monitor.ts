@@ -51,16 +51,10 @@ type UpdatedServerInfo = {
   };
 };
 
-type FetchResult =
-  | {
-      success: true;
-      isAvailable: boolean;
-      info: ServerInfo;
-    }
-  | {
-      success: false;
-      error: Error;
-    };
+type FetchResult = {
+  isAvailable: boolean;
+  info: ServerInfo;
+};
 
 type ComparisonResult = {
   hasUpdates: boolean;
@@ -75,16 +69,11 @@ export async function run(
   const oldInfo = readJsonFile<ServerInfo>(SERVER_INFO_PATH);
   const fetchResult = await fetchServerInfo(ctx.timeoutMs);
 
-  if (!fetchResult.success) {
-    throw fetchResult.error;
-  }
-
   if (state.messageId.length === 0) {
     await initializeMonitor(
       fetchResult.isAvailable,
       fetchResult.info,
       config["channel-id"],
-      time,
       traceId,
     );
 
@@ -150,7 +139,7 @@ export async function run(
 }
 
 async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
-  return new Promise((res) => {
+  return new Promise((res, rej) => {
     const socket = net.createConnection({
       host: "50.115.0.25",
       port: 25565,
@@ -183,22 +172,29 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
         return;
       }
 
-      const packetLengthInfo = decodeVarInt(buffer, offset);
-      offset = packetLengthInfo.offset;
+      let jsonInfo;
 
-      const packetId = decodeVarInt(buffer, offset);
-      offset = packetId.offset;
+      try {
+        const packetLengthInfo = decodeVarInt(buffer, offset);
+        offset = packetLengthInfo.offset;
 
-      const stringLength = decodeVarInt(buffer, offset);
-      offset = stringLength.offset;
+        const packetId = decodeVarInt(buffer, offset);
+        offset = packetId.offset;
 
-      const textInfo = decodeString(buffer, offset, offset + stringLength.value);
-      const jsonInfo = JSON.parse(textInfo);
+        const stringLength = decodeVarInt(buffer, offset);
+        offset = stringLength.offset;
 
-      socket.destroy();
+        const textInfo = decodeString(buffer, offset, offset + stringLength.value);
+        jsonInfo = JSON.parse(textInfo);
+      } catch (cause: unknown) {
+        socket.destroy();
+        rej(cause);
+        return;
+      }
+
+      socket.end();
 
       res({
-        success: true,
         isAvailable: true,
         info: {
           motd: jsonInfo.description,
@@ -212,10 +208,9 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
     });
 
     socket.once("timeout", () => {
-      socket.destroy();
+      socket.end();
 
       res({
-        success: true,
         isAvailable: false,
         info: OFFLINE_SERVER_INFO,
       });
@@ -227,15 +222,11 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
       const networkError = classifyNetworkError(error);
 
       if (networkError instanceof DnsError) {
-        res({
-          success: false,
-          error: networkError,
-        });
+        rej(networkError);
         return;
       }
 
       res({
-        success: true,
         isAvailable: false,
         info: OFFLINE_SERVER_INFO,
       });
@@ -247,7 +238,6 @@ async function initializeMonitor(
   isAvailable: boolean,
   info: ServerInfo,
   channelId: string,
-  time: Date,
   traceId: string,
 ): Promise<void> {
   const message = await sendMessage(channelId, buildMainPayload(info, "N/A"));
@@ -276,7 +266,6 @@ function compareServerInfo(oldInfo: ServerInfo, newInfo: ServerInfo): Comparison
       continue;
     }
 
-    // Tried my best to suppress it because it is obvious what it complains about is impossible.
     (updatedInfo as any)[key] = {
       new: newValue,
       old: oldValue,
