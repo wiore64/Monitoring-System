@@ -63,10 +63,7 @@ async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
   const textHtml = await responseHtml.data.text();
   const textJs = await responseJs.data.text();
 
-  return crypto.hash(
-    "sha256",
-    textHtml + textJs,
-  );
+  return crypto.hash("sha256", textHtml + textJs);
 }
 
 async function initializeMonitor(hash: string, channelId: string, traceId: string): Promise<void> {

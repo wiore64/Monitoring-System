@@ -2,7 +2,7 @@ import net from "node:net";
 
 import config from "#data/minecraft/info/monitor-config.json" with { type: "json" };
 import state from "#data/minecraft/info/monitor-state.json" with { type: "json" };
-import { DnsError, classifyNetworkError, ValidationError } from "#shared/error.js";
+import { classifyNetworkError, isDnsError, ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -216,12 +216,12 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
       });
     });
 
-    socket.once("error", (error: Error) => {
+    socket.once("error", (e: Error) => {
       socket.destroy();
 
-      const networkError = classifyNetworkError(error);
+      const networkError = classifyNetworkError(e);
 
-      if (networkError instanceof DnsError) {
+      if (isDnsError(e)) {
         rej(networkError);
         return;
       }
