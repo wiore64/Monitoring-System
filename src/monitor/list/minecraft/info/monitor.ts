@@ -2,7 +2,7 @@ import net from "node:net";
 
 import config from "#data/minecraft/info/monitor-config.json" with { type: "json" };
 import state from "#data/minecraft/info/monitor-state.json" with { type: "json" };
-import { DnsError, classifyNetworkError, ValidationError } from "#shared/error.js";
+import { classifyNetworkError, isDnsError, ValidationError } from "#shared/error.js";
 import { readJsonFile, writeJsonFile } from "#utils/file.js";
 import { debug, info } from "#utils/logger.js";
 import { editMessage, sendMessage } from "#utils/message.js";
@@ -166,15 +166,13 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
     });
 
     socket.on("data", (payload: Buffer) => {
-      buffer = Buffer.concat([buffer, payload]);
-
-      if (!isPacketComplete(buffer, 0)) {
-        return;
-      }
-
-      let jsonInfo;
-
       try {
+        buffer = Buffer.concat([buffer, payload]);
+
+        if (!isPacketComplete(buffer, 0)) {
+          return;
+        }
+
         const packetLengthInfo = decodeVarInt(buffer, offset);
         offset = packetLengthInfo.offset;
 
@@ -185,26 +183,25 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
         offset = stringLength.offset;
 
         const textInfo = decodeString(buffer, offset, offset + stringLength.value);
-        jsonInfo = JSON.parse(textInfo);
+        const jsonInfo = JSON.parse(textInfo);
+
+        socket.end();
+
+        res({
+          isAvailable: true,
+          info: {
+            motd: jsonInfo.description,
+            icon: jsonInfo.favicon?.split(",")[1] ?? DEFAULT_SERVER_ICON,
+            version: jsonInfo.version.name,
+            protocol: jsonInfo.version.protocol,
+            online: jsonInfo.players.online,
+            maxOnline: jsonInfo.players.max,
+          },
+        });
       } catch (cause: unknown) {
         socket.destroy();
         rej(cause);
-        return;
       }
-
-      socket.end();
-
-      res({
-        isAvailable: true,
-        info: {
-          motd: jsonInfo.description,
-          icon: jsonInfo.favicon?.split(",")[1] ?? DEFAULT_SERVER_ICON,
-          version: jsonInfo.version.name,
-          protocol: jsonInfo.version.protocol,
-          online: jsonInfo.players.online,
-          maxOnline: jsonInfo.players.max,
-        },
-      });
     });
 
     socket.once("timeout", () => {
@@ -216,12 +213,12 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
       });
     });
 
-    socket.once("error", (error: Error) => {
+    socket.once("error", (e: Error) => {
       socket.destroy();
 
-      const networkError = classifyNetworkError(error);
+      const networkError = classifyNetworkError(e);
 
-      if (networkError instanceof DnsError) {
+      if (isDnsError(e)) {
         rej(networkError);
         return;
       }

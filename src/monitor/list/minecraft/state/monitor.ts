@@ -25,8 +25,6 @@ export type MonitorContext = {
   timeoutMs: number;
 };
 
-type ServerResponse = { success: false; error: Error } | { success: true; isResponding: boolean };
-
 export type ServerStatus = "ONLINE" | "OFFLINE" | "RESPONDING" | "UNRESPONDING";
 
 export type ServerState = {
@@ -45,13 +43,9 @@ export async function run(
   traceId: string,
 ): Promise<MonitorContext> {
   const oldState = readJsonFile<ServerState>(SERVER_STATE_PATH);
-  const fetchResult = await fetchServerResponse(ctx.timeoutMs);
+  const isResponding = await fetchServerResponse(ctx.timeoutMs);
 
-  if (!fetchResult.success) {
-    throw fetchResult.error;
-  }
-
-  const newState = inferServerState(fetchResult.isResponding, oldState, ctx);
+  const newState = inferServerState(isResponding, oldState, ctx);
 
   if (monitorState.messageId.length === 0) {
     await initializeMonitor(newState, config["channel-id"], traceId);
@@ -83,8 +77,8 @@ export async function run(
   return ctx;
 }
 
-async function fetchServerResponse(timeoutMs: number): Promise<ServerResponse> {
-  return new Promise((res) => {
+async function fetchServerResponse(timeoutMs: number): Promise<boolean> {
+  return new Promise((res, rej) => {
     const socket = net.createConnection({
       host: "50.115.0.25",
       port: 25565,
@@ -95,25 +89,25 @@ async function fetchServerResponse(timeoutMs: number): Promise<ServerResponse> {
 
     socket.once("connect", () => {
       socket.end();
-
-      res({ success: true, isResponding: true });
+      res(true);
     });
 
     socket.once("timeout", () => {
       socket.end();
-
-      res({ success: true, isResponding: false });
+      res(false);
     });
 
     socket.once("error", (e: Error) => {
-      socket.end();
+      socket.destroy();
 
-      if (isDnsError(classifyNetworkError(e))) {
-        res({ success: false, error: e });
+      const networkError = classifyNetworkError(e);
+
+      if (isDnsError(networkError)) {
+        rej(networkError);
         return;
       }
 
-      res({ success: true, isResponding: false });
+      res(false);
     });
   });
 }
