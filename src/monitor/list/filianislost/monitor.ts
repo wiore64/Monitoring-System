@@ -12,7 +12,8 @@ import { buildMainPayload, buildUpdatePayload } from "./payload-builder.js";
 const LOG_NAME = "filianislost";
 const MONITOR_STATE_PATH = "./data/filianislost/monitor-state.json";
 const WEBSITE_STATE_PATH = "./data/filianislost/website-hash.txt";
-const WEBSITE_URL = "https://filianislost.com";
+const WEBSITE_HTML_URL = "https://filianislost.com";
+const WEBSITE_JS_URL = "https://filianislost.com/viewer.js";
 
 export type MonitorContext = {
   timeoutMs: number;
@@ -48,17 +49,23 @@ export async function run(
 }
 
 async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
-  const response = await fetchUrl(LOG_NAME, WEBSITE_URL, timeoutMs);
+  const responseHtml = await fetchUrl(LOG_NAME, WEBSITE_HTML_URL, timeoutMs);
+  const responseJs = await fetchUrl(LOG_NAME, WEBSITE_JS_URL, timeoutMs);
 
-  if (!response.success) {
-    throw response.error;
+  if (!responseHtml.success) {
+    throw responseHtml.error;
   }
 
-  const text = await response.data.text();
+  if (!responseJs.success) {
+    throw responseJs.error;
+  }
+
+  const textHtml = await responseHtml.data.text();
+  const textJs = await responseJs.data.text();
 
   return crypto.hash(
     "sha256",
-    text.indexOf("cloudflare") === -1 ? text : text.substring(0, text.indexOf("cloudflare")),
+    textHtml + textJs,
   );
 }
 
