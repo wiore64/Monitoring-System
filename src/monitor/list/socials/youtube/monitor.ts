@@ -99,7 +99,7 @@ export async function run(
 }
 
 async function fetchChannelInfo(token: string, timeoutMs: number): Promise<ChannelInfo> {
-  const response = await fetchUrl(YOUTUBE_URL.replace("{token}", token), timeoutMs);
+  const response = await fetchUrl(LOG_NAME, YOUTUBE_URL.replace("{token}", token), timeoutMs);
 
   if (!response.success) {
     throw response.error;

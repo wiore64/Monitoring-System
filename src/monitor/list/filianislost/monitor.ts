@@ -48,7 +48,7 @@ export async function run(
 }
 
 async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
-  const response = await fetchUrl(WEBSITE_URL, timeoutMs);
+  const response = await fetchUrl(LOG_NAME, WEBSITE_URL, timeoutMs);
 
   if (!response.success) {
     throw response.error;

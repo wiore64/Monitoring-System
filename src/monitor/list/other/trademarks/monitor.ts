@@ -106,7 +106,7 @@ async function fetchTrademarkInfo(
   url: string,
   timeoutMs: number,
 ): Promise<TrademarkInfo> {
-  const response = await fetchUrl(url, timeoutMs);
+  const response = await fetchUrl(LOG_NAME, url, timeoutMs);
 
   if (!response.success) {
     throw response.error;

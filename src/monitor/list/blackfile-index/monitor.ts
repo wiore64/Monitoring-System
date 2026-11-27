@@ -67,7 +67,7 @@ export async function run(
 }
 
 async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
-  const response = await fetchUrl(WEBSITE_URL, timeoutMs);
+  const response = await fetchUrl(LOG_NAME, WEBSITE_URL, timeoutMs);
 
   if (response.success) {
     return true;

@@ -4,6 +4,7 @@ type FetchUrlResult =
   { success: true; data: Response } | { success: false; data?: Response; error: Error };
 
 export async function fetchUrl(
+  source: string,
   url: string,
   timeoutMs: number,
   options?: RequestInit,
@@ -18,7 +19,7 @@ export async function fetchUrl(
       return {
         success: false,
         data: response,
-        error: new HttpError(`Failed to fetch a response from ${url}.`, `${response.status}`),
+        error: new HttpError(`Failed to fetch a response from ${source}.`, `${response.status}`),
       };
     }
 
@@ -33,7 +34,7 @@ export async function fetchUrl(
       return {
         success: false,
         error: new ValidationError(
-          `Non-error thrown while fetching ${url}: ${JSON.stringify(cause)}`,
+          `Non-error thrown while fetching ${source}: ${JSON.stringify(cause)}`,
         ),
       };
     }
