@@ -1,11 +1,11 @@
 {
  "main": {
-   "color": "0xFFFFFF",
-   "description": "# Website | filianislost\n**The website that has turned the whole world upside down.**\n### Information\n**Link: [Click](<https://filianislost.com>)**\n**Last Updated:** ``{TIMESTAMP}``"
+   "color": "",
+   "description": ""
  },
  "update": {
-   "color": "0xE7BDFF",
-   "title": "Website Updated",
-   "description": "**Timestamp:** ``{TIMESTAMP}``"
+   "color": "",
+   "title": "",
+   "description": ""
  }
 }
