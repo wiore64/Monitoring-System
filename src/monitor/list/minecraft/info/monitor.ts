@@ -166,15 +166,13 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
     });
 
     socket.on("data", (payload: Buffer) => {
-      buffer = Buffer.concat([buffer, payload]);
-
-      if (!isPacketComplete(buffer, 0)) {
-        return;
-      }
-
-      let jsonInfo;
-
       try {
+        buffer = Buffer.concat([buffer, payload]);
+
+        if (!isPacketComplete(buffer, 0)) {
+          return;
+        }
+
         const packetLengthInfo = decodeVarInt(buffer, offset);
         offset = packetLengthInfo.offset;
 
@@ -185,26 +183,25 @@ async function fetchServerInfo(timeoutMs: number): Promise<FetchResult> {
         offset = stringLength.offset;
 
         const textInfo = decodeString(buffer, offset, offset + stringLength.value);
-        jsonInfo = JSON.parse(textInfo);
+        const jsonInfo = JSON.parse(textInfo);
+
+        socket.end();
+
+        res({
+          isAvailable: true,
+          info: {
+            motd: jsonInfo.description,
+            icon: jsonInfo.favicon?.split(",")[1] ?? DEFAULT_SERVER_ICON,
+            version: jsonInfo.version.name,
+            protocol: jsonInfo.version.protocol,
+            online: jsonInfo.players.online,
+            maxOnline: jsonInfo.players.max,
+          },
+        });
       } catch (cause: unknown) {
         socket.destroy();
         rej(cause);
-        return;
       }
-
-      socket.end();
-
-      res({
-        isAvailable: true,
-        info: {
-          motd: jsonInfo.description,
-          icon: jsonInfo.favicon?.split(",")[1] ?? DEFAULT_SERVER_ICON,
-          version: jsonInfo.version.name,
-          protocol: jsonInfo.version.protocol,
-          online: jsonInfo.players.online,
-          maxOnline: jsonInfo.players.max,
-        },
-      });
     });
 
     socket.once("timeout", () => {
