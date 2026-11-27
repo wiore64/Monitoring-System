@@ -13,6 +13,7 @@ export function writeFile(relativePath: string, content: string): void {
 }
 
 export function readFile(relativePath: string): string {
+  ensureFileExists(relativePath);
   return fs.readFileSync(relativePath, {
     encoding: "utf-8",
   });
@@ -23,9 +24,18 @@ export function writeJsonFile(relativePath: string, content: object, indentation
 }
 
 export function readJsonFile<T>(relativePath: string): T {
+  ensureFileExists(relativePath, "{}");
   return JSON.parse(readFile(relativePath));
 }
 
 export function createDirectory(relativePath: string): void {
   fs.mkdirSync(relativePath, { recursive: true });
+}
+
+function ensureFileExists(relativePath: string, defContent: string = ""): void {
+  if (fs.existsSync(relativePath)) {
+    return;
+  }
+
+  fs.writeFileSync(relativePath, defContent);
 }

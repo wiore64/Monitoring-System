@@ -61,28 +61,34 @@ type ComparisonResult = {
 };
 
 export async function run(
-  context: MonitorContext,
+  ctx: MonitorContext,
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
   const oldTrademarksInfo = readJsonFile<TrademarksInfo>(TRADEMARKS_INFO_PATH);
-  const newTrademarksInfo = await fetchTrademarksInfo(context.timeoutMs);
+  const newTrademarksInfo = await fetchTrademarksInfo(ctx.timeoutMs);
 
   if (!state.isInitialized) {
     initializeMonitor(newTrademarksInfo, traceId);
-    return context;
+    return ctx;
+  }
+
+  if (Object.keys(oldTrademarksInfo).length === 0) {
+    writeJsonFile(TRADEMARKS_INFO_PATH, newTrademarksInfo);
+    debug(LOG_NAME, "Old info not found. New one persisted.", traceId);
+    return ctx;
   }
 
   const result = compareTrademarksInfo(newTrademarksInfo, oldTrademarksInfo);
 
   if (!result.hasUpdates) {
-    return context;
+    return ctx;
   }
 
   await reportChanges(result.updatedInfo, config["channel-id"], traceId);
   writeJsonFile(TRADEMARKS_INFO_PATH, newTrademarksInfo);
 
-  return context;
+  return ctx;
 }
 
 async function fetchTrademarksInfo(timeoutMs: number): Promise<TrademarksInfo> {
@@ -100,7 +106,7 @@ async function fetchTrademarkInfo(
   url: string,
   timeoutMs: number,
 ): Promise<TrademarkInfo> {
-  const response = await fetchUrl(url, timeoutMs);
+  const response = await fetchUrl(LOG_NAME, url, timeoutMs);
 
   if (!response.success) {
     throw response.error;

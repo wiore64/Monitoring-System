@@ -1,18 +1,18 @@
 {
   "main": {
-    "color": "0x142B1A",
-    "description": "# Website | blackfile-index\n**The truth that has never been told.**\n## Information\n**Status:** ``{STATUS}``\n**Link: [Click](https://blackfile-index.org)**\n**Source: [Click](<https://drive.google.com/drive/folders/1Jmrw-ppxHuhV1qQM3RXTs1dDV46w9q77>)**\n**Last Update:** ``{TIMESTAMP}``"
+    "color": "",
+    "description": ""
   },
   "update": {
     "available": {
-      "color": "0x6AD988",
-      "title": "Website Available",
-      "description": "**Website** became **available**.\n### Information\n**Timestamp:** ``{TIMESTAMP}``"
+      "color": "",
+      "title": "",
+      "description": ""
     },
     "unavailable": {
-      "color": "0x6AD988",
-      "title": "Website Unavailable",
-      "description": "**Website** became **unavailable**.\n### Information\n**Timestamp:** ``{TIMESTAMP}``"
+      "color": "",
+      "title": "",
+      "description": ""
     }
   }
 }

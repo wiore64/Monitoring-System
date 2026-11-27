@@ -19,30 +19,36 @@ export type MonitorContext = {
 };
 
 export async function run(
-  context: MonitorContext,
+  ctx: MonitorContext,
   time: Date,
   traceId: string,
 ): Promise<MonitorContext> {
   const oldHash = readFile(WEBSITE_STATE_PATH);
-  const newHash = await fetchWebsiteHash(context.timeoutMs);
+  const newHash = await fetchWebsiteHash(ctx.timeoutMs);
 
-  if (state.messageId.length === 0 || !oldHash) {
+  if (state.messageId.length === 0) {
     await initializeMonitor(newHash, config["channel-id"], traceId);
-    return context;
+    return ctx;
+  }
+
+  if (oldHash.length === 0) {
+    writeFile(WEBSITE_STATE_PATH, newHash);
+    debug(LOG_NAME, "Old hash not found. New one persisted.", traceId);
+    return ctx;
   }
 
   if (newHash === oldHash) {
-    return context;
+    return ctx;
   }
 
   await reportUpdate(config["channel-id"], state.messageId, time, traceId);
   writeFile(WEBSITE_STATE_PATH, newHash);
 
-  return context;
+  return ctx;
 }
 
 async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
-  const response = await fetchUrl(WEBSITE_URL, timeoutMs);
+  const response = await fetchUrl(LOG_NAME, WEBSITE_URL, timeoutMs);
 
   if (!response.success) {
     throw response.error;
@@ -50,7 +56,10 @@ async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
 
   const text = await response.data.text();
 
-  return crypto.hash("sha256", text.substring(0, text.indexOf("cloudflare")));
+  return crypto.hash(
+    "sha256",
+    text.indexOf("cloudflare") === -1 ? text : text.substring(0, text.indexOf("cloudflare")),
+  );
 }
 
 async function initializeMonitor(hash: string, channelId: string, traceId: string): Promise<void> {

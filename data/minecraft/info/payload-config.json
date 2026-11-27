@@ -1,31 +1,31 @@
 {
   "main": {
     "general": {
-      "color": "0x633600",
-      "description": "# Minecraft Server | Info\n**If only you knew how much more is out there.**\n## Information\n**IP:** ``50.115.0.25:25565``\n**Version:** ``{VERSION}``\n**Protocol:** ``{PROTOCOL}``\n**Online:** ``{ONLINE}/{MAX_ONLINE}``\n**Last Update:** ``{TIMESTAMP}``"
+      "color": "",
+      "description": ""
     },
     "motd": {
-      "color": "0x633600",
-      "title": "Server MOTD"
+      "color": "",
+      "title": ""
     },
     "icon": {
-      "color": "0x633600",
-      "title": "Server Icon"
+      "color": "",
+      "title": ""
     }
   },
   "update": {
     "general": {
-      "color": "0x965100",
-      "title": "Update Observed",
-      "description": "**Target:** ``{TARGET}``\n**Timestamp:** ``{TIMESTAMP}``"
+      "color": "",
+      "title": "",
+      "description": ""
     },
     "new": {
-      "color": "0x965100",
-      "title": "New Value"
+      "color": "",
+      "title": ""
     },
     "old": {
-      "color": "0x965100",
-      "title": "Old Value"
+      "color": "",
+      "title": ""
     }
   }
 }

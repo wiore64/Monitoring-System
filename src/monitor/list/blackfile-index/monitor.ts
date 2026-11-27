@@ -39,6 +39,14 @@ export async function run(
     return ctx;
   }
 
+  if (Object.keys(previousState).length === 0) {
+    writeJsonFile(WEBSITE_STATE_PATH, {
+      isAvailable: isWebsiteAvailable,
+    });
+    debug(LOG_NAME, "Previous state not found. New one persisted.", traceId);
+    return ctx;
+  }
+
   if (previousState.isAvailable === isWebsiteAvailable) {
     return ctx;
   }
@@ -59,7 +67,7 @@ export async function run(
 }
 
 async function checkWebsiteAvailability(timeoutMs: number): Promise<boolean> {
-  const response = await fetchUrl(WEBSITE_URL, timeoutMs);
+  const response = await fetchUrl(LOG_NAME, WEBSITE_URL, timeoutMs);
 
   if (response.success) {
     return true;

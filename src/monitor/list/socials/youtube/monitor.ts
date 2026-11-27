@@ -80,6 +80,12 @@ export async function run(
     return ctx;
   }
 
+  if (Object.keys(oldInfo).length === 0) {
+    writeJsonFile(CHANNEL_INFO_PATH, newInfo);
+    debug(LOG_NAME, "Old info not found. New one persisted.", traceId);
+    return ctx;
+  }
+
   const result = compareChannelInfo(oldInfo, newInfo);
 
   if (!result.hasUpdates) {
@@ -93,7 +99,7 @@ export async function run(
 }
 
 async function fetchChannelInfo(token: string, timeoutMs: number): Promise<ChannelInfo> {
-  const response = await fetchUrl(YOUTUBE_URL.replace("{token}", token), timeoutMs);
+  const response = await fetchUrl(LOG_NAME, YOUTUBE_URL.replace("{token}", token), timeoutMs);
 
   if (!response.success) {
     throw response.error;
