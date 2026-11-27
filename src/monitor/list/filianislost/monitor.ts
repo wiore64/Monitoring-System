@@ -56,7 +56,10 @@ async function fetchWebsiteHash(timeoutMs: number): Promise<string> {
 
   const text = await response.data.text();
 
-  return crypto.hash("sha256", text.substring(0, text.indexOf("cloudflare")));
+  return crypto.hash(
+    "sha256",
+    text.indexOf("cloudflare") === -1 ? text : text.substring(0, text.indexOf("cloudflare")),
+  );
 }
 
 async function initializeMonitor(hash: string, channelId: string, traceId: string): Promise<void> {
